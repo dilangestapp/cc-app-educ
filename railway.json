@@ -1,8 +1,13 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
-  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+
   "deploy": {
-    "startCommand": "/bin/sh -lc ./start.sh",
+    "startCommand": "/bin/sh -lc \"chmod +x start.sh && ./start.sh\"",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
