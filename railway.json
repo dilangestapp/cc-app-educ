@@ -1,0 +1,11 @@
+(
+echo {
+echo   "$schema": "https://railway.com/railway.schema.json",
+echo   "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+echo   "deploy": {
+echo     "startCommand": "/bin/sh -lc ./start.sh",
+echo     "restartPolicyType": "ON_FAILURE",
+echo     "restartPolicyMaxRetries": 10
+echo   }
+echo }
+) > railway.json

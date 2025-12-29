@@ -1,0 +1,7 @@
+(
+echo .git
+echo node_modules
+echo vendor
+echo .env
+echo storage/logs
+) > .dockerignore
