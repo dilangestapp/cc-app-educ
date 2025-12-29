@@ -1,16 +1,12 @@
 #!/bin/sh
-set -eu
+set -e
 
-PORT="${PORT:-8080}"
+echo "=== Running migrations ==="
+php artisan migrate --force || true
 
-echo "[BOOT] start.sh running"
-echo "[BOOT] Listening on 0.0.0.0:${PORT}"
+echo "=== Caching config/routes (optional) ==="
+php artisan config:cache || true
+php artisan route:cache || true
 
-mkdir -p storage bootstrap/cache || true
-chmod -R 775 storage bootstrap/cache || true
-
-if [ -f artisan ]; then
-  php artisan package:discover --ansi || true
-fi
-
-exec php -S 0.0.0.0:"$PORT" -t public
+echo "=== Starting server ==="
+exec php -S 0.0.0.0:${PORT:-8000} -t public
