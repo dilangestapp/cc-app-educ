@@ -2,8 +2,8 @@ FROM php:8.2-cli-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache bash git unzip icu-dev libzip-dev oniguruma-dev \
-  && docker-php-ext-install intl mbstring zip pdo pdo_mysql
+RUN apk add --no-cache bash git unzip icu-dev libzip-dev oniguruma-dev postgresql-dev \
+  && docker-php-ext-install intl mbstring zip pdo pdo_mysql pdo_pgsql
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
