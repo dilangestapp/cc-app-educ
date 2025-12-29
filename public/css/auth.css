@@ -1,0 +1,138 @@
+/* ================================
+   CC App Educ – Auth UI (PRO)
+   ================================ */
+
+* {
+    box-sizing: border-box;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #3b1d0f, #8a4b2a, #d9a066);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Container */
+.auth-wrapper {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+/* Card */
+.auth-card {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+    border-radius: 18px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    color: #fff;
+}
+
+/* Header */
+.auth-header {
+    margin-bottom: 28px;
+}
+
+.auth-title {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.auth-subtitle {
+    font-size: 14px;
+    opacity: 0.85;
+    margin-top: 6px;
+}
+
+/* Form */
+.auth-form {
+    margin-top: 20px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+/* Inputs */
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    padding: 10px 14px;
+}
+
+.input-wrapper span {
+    font-size: 16px;
+    margin-right: 10px;
+    color: #555;
+}
+
+.input-wrapper input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 14px;
+    background: transparent;
+}
+
+/* Options */
+.auth-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+.auth-options label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.auth-options a {
+    color: #ffe1c4;
+    text-decoration: none;
+}
+
+.auth-options a:hover {
+    text-decoration: underline;
+}
+
+/* Button */
+.auth-submit {
+    margin-top: 26px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.auth-submit button {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    color: #8a4b2a;
+    font-size: 22px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-submit button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Errors */
+.auth-error {
+    font-size: 12px;
+    color: #ffd6d6;
+    margin-top: 6px;
+}
