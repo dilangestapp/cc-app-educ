@@ -24,10 +24,13 @@ cat > resources/views/dashboard.blade.php <<'EOF'
                     <p class="text-gray-600 mt-2">Gestion des élèves</p>
                 </div>
 
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h3 class="text-lg font-semibold">🏫 Classes</h3>
-                    <p class="text-gray-600 mt-2">Organisation des classes</p>
-                </div>
+                <<a href="{{ route('classes.index') }}" class="block hover:bg-gray-50 transition">
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold">🏫 Classes</h3>
+        <p class="text-gray-600 mt-2">Organisation des classes</p>
+    </div>
+</a>
+
 
                 <div class="bg-white p-6 rounded-lg shadow">
                     <h3 class="text-lg font-semibold">👨‍🏫 Enseignants</h3>
