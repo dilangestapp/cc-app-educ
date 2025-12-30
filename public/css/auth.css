@@ -89,3 +89,38 @@ body {
     font-size: 13px;
     text-decoration: underline;
 }
+/* ================================
+   BRANDING — CC APP EDUC
+================================ */
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.brand img {
+    width: 80px;
+    height: auto;
+    margin-bottom: 12px;
+}
+
+.brand-name {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    text-transform: uppercase;
+}
+
+.brand-name span {
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+.brand-tagline {
+    font-size: 13px;
+    margin-top: 4px;
+    color: rgba(255,255,255,0.85);
+}
