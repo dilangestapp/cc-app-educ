@@ -1,0 +1,53 @@
+/* RESET SIMPLE */
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f6fa;
+    color: #333;
+}
+
+/* HEADER */
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 30px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* BRAND */
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.app-brand img {
+    width: 36px;
+}
+
+/* NAV */
+.app-nav a {
+    margin: 0 10px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+}
+
+.app-nav a:hover {
+    text-decoration: underline;
+}
+
+/* USER */
+.app-user {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* CONTENT */
+.app-content {
+    padding: 30px;
+}
