@@ -9,125 +9,93 @@ use Illuminate\Support\Facades\Schema;
 class MatiereController extends Controller
 {
     /**
-     * Détecte le bon nom de colonne (nom ou name) dans matieres
-     */
-    private function matiereNameColumn(): string
-    {
-        if (Schema::hasColumn('matieres', 'nom')) return 'nom';
-        if (Schema::hasColumn('matieres', 'name')) return 'name';
-        return 'nom'; // fallback
-    }
-
-    /**
-     * ✅ GESTION GLOBALE : /matieres
+     * Page de gestion globale des matières (UNE matière existe une seule fois)
+     * URL: /matieres
      */
     public function manage()
     {
-        $col = $this->matiereNameColumn();
-
-        $matieres = DB::table('matieres')
-            ->leftJoin('classe_matiere', 'matieres.id', '=', 'classe_matiere.matiere_id')
-            ->select(
-                'matieres.id',
-                DB::raw("matieres.$col as nom"),
-                DB::raw('COUNT(classe_matiere.classe_id) as classes_count')
-            )
-            ->groupBy('matieres.id', "matieres.$col")
-            ->orderBy("matieres.$col")
-            ->get();
-
+        $matieres = DB::table('matieres')->orderBy('nom')->get();
         return view('matieres.manage', compact('matieres'));
     }
 
     /**
-     * ✅ MATIERES D’UNE CLASSE : /classes/{classe}/matieres
+     * Matières d’une classe (parcours pédagogique)
+     * URL: /classes/{classe}/matieres
      */
     public function indexByClasse($classe)
     {
-        $col = $this->matiereNameColumn();
-
         $classeRow = DB::table('classes')->where('id', $classe)->first();
         abort_if(!$classeRow, 404);
 
         $matieres = DB::table('matieres')
             ->join('classe_matiere', 'matieres.id', '=', 'classe_matiere.matiere_id')
             ->where('classe_matiere.classe_id', $classe)
-            ->select('matieres.id', DB::raw("matieres.$col as nom"))
-            ->orderBy("matieres.$col")
+            ->select('matieres.*')
+            ->orderBy('matieres.nom')
             ->get();
 
-        return view('matieres.index', compact('classeRow', 'matieres'));
+        return view('matieres.classe', compact('classeRow', 'matieres'));
     }
 
+    /**
+     * Formulaire création matière
+     */
     public function create()
     {
         return view('matieres.create');
     }
 
+    /**
+     * Enregistrer une matière (UNE SEULE FOIS)
+     */
     public function store(Request $request)
     {
         $request->validate([
-            'nom' => 'required|string|max:255',
+            'nom' => 'required|string|max:255|unique:matieres,nom',
         ]);
 
-        $col = $this->matiereNameColumn();
+        $data = ['nom' => trim($request->nom)];
 
-        // ✅ Unique (sans dépendre du nom de colonne)
-        $exists = DB::table('matieres')->where($col, $request->nom)->exists();
-        if ($exists) {
-            return back()->withErrors(['nom' => 'Cette matière existe déjà.'])->withInput();
-        }
+        // Safe timestamps (si colonnes existent)
+        if (Schema::hasColumn('matieres', 'created_at')) $data['created_at'] = now();
+        if (Schema::hasColumn('matieres', 'updated_at')) $data['updated_at'] = now();
 
-        DB::table('matieres')->insert([
-            $col => $request->nom,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('matieres')->insert($data);
 
         return redirect()->route('matieres.manage')->with('success', 'Matière créée.');
     }
 
+    /**
+     * Formulaire édition matière
+     */
     public function edit($matiere)
     {
-        $col = $this->matiereNameColumn();
-
-        $matiereRow = DB::table('matieres')
-            ->select('id', DB::raw("$col as nom"))
-            ->where('id', $matiere)
-            ->first();
-
+        $matiereRow = DB::table('matieres')->where('id', $matiere)->first();
         abort_if(!$matiereRow, 404);
 
         return view('matieres.edit', compact('matiereRow'));
     }
 
+    /**
+     * Mise à jour matière
+     */
     public function update(Request $request, $matiere)
     {
         $request->validate([
-            'nom' => 'required|string|max:255',
+            'nom' => 'required|string|max:255|unique:matieres,nom,' . $matiere,
         ]);
 
-        $col = $this->matiereNameColumn();
+        $data = ['nom' => trim($request->nom)];
+        if (Schema::hasColumn('matieres', 'updated_at')) $data['updated_at'] = now();
 
-        $exists = DB::table('matieres')
-            ->where($col, $request->nom)
-            ->where('id', '!=', $matiere)
-            ->exists();
-
-        if ($exists) {
-            return back()->withErrors(['nom' => 'Cette matière existe déjà.'])->withInput();
-        }
-
-        DB::table('matieres')
-            ->where('id', $matiere)
-            ->update([
-                $col => $request->nom,
-                'updated_at' => now(),
-            ]);
+        DB::table('matieres')->where('id', $matiere)->update($data);
 
         return redirect()->route('matieres.manage')->with('success', 'Matière mise à jour.');
     }
 
+    /**
+     * Supprimer matière (et ses affectations)
+     */
     public function destroy($matiere)
     {
         DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
@@ -136,15 +104,12 @@ class MatiereController extends Controller
         return redirect()->route('matieres.manage')->with('success', 'Matière supprimée.');
     }
 
+    /**
+     * Page d’affectation matière → classes
+     */
     public function affecter($matiere)
     {
-        $col = $this->matiereNameColumn();
-
-        $matiereRow = DB::table('matieres')
-            ->select('id', DB::raw("$col as nom"))
-            ->where('id', $matiere)
-            ->first();
-
+        $matiereRow = DB::table('matieres')->where('id', $matiere)->first();
         abort_if(!$matiereRow, 404);
 
         $classes = DB::table('classes')->orderBy('nom')->get();
@@ -157,18 +122,27 @@ class MatiereController extends Controller
         return view('matieres.affecter', compact('matiereRow', 'classes', 'classesAffectees'));
     }
 
+    /**
+     * Enregistrer affectations
+     */
     public function storeAffectation(Request $request, $matiere)
     {
+        // reset
         DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
 
         $classes = $request->input('classes', []);
-        foreach ($classes as $classeId) {
-            DB::table('classe_matiere')->insert([
-                'matiere_id' => $matiere,
-                'classe_id'  => $classeId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        if (is_array($classes) && count($classes)) {
+            foreach ($classes as $classeId) {
+                $row = [
+                    'matiere_id' => (int)$matiere,
+                    'classe_id'  => (int)$classeId,
+                ];
+                // Safe timestamps pivot
+                if (Schema::hasColumn('classe_matiere', 'created_at')) $row['created_at'] = now();
+                if (Schema::hasColumn('classe_matiere', 'updated_at')) $row['updated_at'] = now();
+
+                DB::table('classe_matiere')->insert($row);
+            }
         }
 
         return redirect()->route('matieres.manage')->with('success', 'Affectations mises à jour.');
