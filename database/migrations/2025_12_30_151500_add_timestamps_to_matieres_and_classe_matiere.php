@@ -8,33 +8,43 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // ✅ matieres : ajout created_at / updated_at si manquants
+        // ====== matieres ======
         if (Schema::hasTable('matieres')) {
-            Schema::table('matieres', function (Blueprint $table) {
-                if (!Schema::hasColumn('matieres', 'created_at')) {
-                    $table->timestamp('created_at')->nullable();
-                }
-                if (!Schema::hasColumn('matieres', 'updated_at')) {
-                    $table->timestamp('updated_at')->nullable();
-                }
-            });
+            $hasCreated = Schema::hasColumn('matieres', 'created_at');
+            $hasUpdated = Schema::hasColumn('matieres', 'updated_at');
+
+            if (!$hasCreated || !$hasUpdated) {
+                Schema::table('matieres', function (Blueprint $table) use ($hasCreated, $hasUpdated) {
+                    if (!$hasCreated) {
+                        $table->timestamp('created_at')->nullable();
+                    }
+                    if (!$hasUpdated) {
+                        $table->timestamp('updated_at')->nullable();
+                    }
+                });
+            }
         }
 
-        // ✅ classe_matiere : ton controller insère aussi created_at / updated_at
+        // ====== classe_matiere ======
         if (Schema::hasTable('classe_matiere')) {
-            Schema::table('classe_matiere', function (Blueprint $table) {
-                if (!Schema::hasColumn('classe_matiere', 'created_at')) {
-                    $table->timestamp('created_at')->nullable();
-                }
-                if (!Schema::hasColumn('classe_matiere', 'updated_at')) {
-                    $table->timestamp('updated_at')->nullable();
-                }
-            });
+            $hasCreated2 = Schema::hasColumn('classe_matiere', 'created_at');
+            $hasUpdated2 = Schema::hasColumn('classe_matiere', 'updated_at');
+
+            if (!$hasCreated2 || !$hasUpdated2) {
+                Schema::table('classe_matiere', function (Blueprint $table) use ($hasCreated2, $hasUpdated2) {
+                    if (!$hasCreated2) {
+                        $table->timestamp('created_at')->nullable();
+                    }
+                    if (!$hasUpdated2) {
+                        $table->timestamp('updated_at')->nullable();
+                    }
+                });
+            }
         }
     }
 
     public function down(): void
     {
-        // On ne supprime pas ces colonnes en prod (safe)
+        // on ne drop pas en prod
     }
 };
