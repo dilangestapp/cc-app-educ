@@ -2,6 +2,9 @@
    CC App Educ — Auth UI
    Style: Modern Soft SaaS (Warm Gradient)
    ================================================= */
+body {
+    background: red !important;
+}
 
 * {
     box-sizing: border-box;
