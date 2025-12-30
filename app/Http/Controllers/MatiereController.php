@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\DB;
 class MatiereController extends Controller
 {
     /**
-     * ✅ Gestion globale des matières (Dashboard → Matières)
-     * Une matière existe une seule fois, mais peut être affectée à plusieurs classes.
+     * ✅ Gestion globale des matières (/matieres)
      */
     public function index()
     {
@@ -28,7 +27,7 @@ class MatiereController extends Controller
     }
 
     /**
-     * ✅ Liste des matières affectées à une classe (Parcours pédagogique : Classe → Matière)
+     * ✅ Matières d’une classe (/classes/{classe}/matieres)
      */
     public function indexClasse($classe)
     {
@@ -45,17 +44,11 @@ class MatiereController extends Controller
         return view('matieres.index', compact('classeRow', 'matieres'));
     }
 
-    /**
-     * Formulaire création matière (globale)
-     */
     public function create()
     {
         return view('matieres.create');
     }
 
-    /**
-     * Enregistrer une matière (UNE SEULE FOIS)
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -71,9 +64,6 @@ class MatiereController extends Controller
         return redirect()->route('matieres.index')->with('success', 'Matière créée.');
     }
 
-    /**
-     * Formulaire édition matière
-     */
     public function edit($matiere)
     {
         $matiereRow = DB::table('matieres')->where('id', $matiere)->first();
@@ -82,9 +72,6 @@ class MatiereController extends Controller
         return view('matieres.edit', compact('matiereRow'));
     }
 
-    /**
-     * Mise à jour matière
-     */
     public function update(Request $request, $matiere)
     {
         $request->validate([
@@ -101,9 +88,6 @@ class MatiereController extends Controller
         return redirect()->route('matieres.index')->with('success', 'Matière mise à jour.');
     }
 
-    /**
-     * Supprimer matière (et ses affectations)
-     */
     public function destroy($matiere)
     {
         DB::transaction(function () use ($matiere) {
@@ -114,9 +98,6 @@ class MatiereController extends Controller
         return redirect()->route('matieres.index')->with('success', 'Matière supprimée.');
     }
 
-    /**
-     * Page d’affectation matière → classes
-     */
     public function affecter($matiere)
     {
         $matiereRow = DB::table('matieres')->where('id', $matiere)->first();
@@ -132,9 +113,6 @@ class MatiereController extends Controller
         return view('matieres.affecter', compact('matiereRow', 'classes', 'classesAffectees'));
     }
 
-    /**
-     * Enregistrer affectations
-     */
     public function storeAffectation(Request $request, $matiere)
     {
         $request->validate([
@@ -143,11 +121,9 @@ class MatiereController extends Controller
         ]);
 
         DB::transaction(function () use ($request, $matiere) {
-
             DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
 
             $classes = $request->input('classes', []);
-
             foreach ($classes as $classeId) {
                 DB::table('classe_matiere')->insert([
                     'matiere_id' => $matiere,

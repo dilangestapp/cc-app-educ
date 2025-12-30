@@ -44,26 +44,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/classes', [ClasseController::class, 'store'])->name('classes.store');
 
     // =========================
-    // Matières — GESTION GLOBALE (Dashboard → Matières)
+    // Matières — gestion globale
     // =========================
     Route::get('/matieres', [MatiereController::class, 'index'])->name('matieres.index');
-
     Route::get('/matieres/create', [MatiereController::class, 'create'])->name('matieres.create');
     Route::post('/matieres', [MatiereController::class, 'store'])->name('matieres.store');
-
     Route::get('/matieres/{matiere}/edit', [MatiereController::class, 'edit'])->name('matieres.edit');
     Route::put('/matieres/{matiere}', [MatiereController::class, 'update'])->name('matieres.update');
-
     Route::delete('/matieres/{matiere}', [MatiereController::class, 'destroy'])->name('matieres.destroy');
 
     // =========================
-    // Matières d’une classe (Parcours pédagogique : Classe → Matière)
+    // Matières d’une classe (parcours pédagogique)
     // =========================
     Route::get('/classes/{classe}/matieres', [MatiereController::class, 'indexClasse'])
         ->name('classes.matieres.index');
 
     // =========================
-    // Affectation matière ↔ classes (pivot)
+    // Affectations (matière → classes)
     // =========================
     Route::get('/matieres/{matiere}/affecter', [MatiereController::class, 'affecter'])
         ->name('matieres.affecter');

@@ -5,14 +5,10 @@
 
             <div class="flex gap-2">
                 <a href="{{ route('dashboard') }}"
-                   class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">
-                    Retour
-                </a>
+                   class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">Retour</a>
 
                 <a href="{{ route('matieres.create') }}"
-                   class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">
-                    + Nouvelle matière
-                </a>
+                   class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">+ Nouvelle matière</a>
             </div>
         </div>
     </x-slot>
@@ -77,7 +73,7 @@
                     @endif
 
                     <div class="mt-6 text-sm text-blue-900 bg-blue-50 border border-blue-200 rounded p-4">
-                        ✅ Rappel : Une matière existe une seule fois, mais peut être affectée à plusieurs classes.
+                        ✅ Une matière existe une seule fois, mais peut être affectée à plusieurs classes.
                     </div>
 
                 </div>
