@@ -17,6 +17,11 @@ class Matiere extends Model
 
     public function classes()
     {
-        return $this->belongsToMany(Classe::class, 'classe_matiere', 'matiere_id', 'classe_id');
+        return $this->belongsToMany(
+            Classe::class,
+            'classe_matiere',
+            'matiere_id',
+            'classe_id'
+        )->withTimestamps();
     }
 }
