@@ -8,9 +8,29 @@ use Illuminate\Support\Facades\DB;
 class MatiereController extends Controller
 {
     /**
-     * Liste des matières affectées à une classe
+     * ✅ Gestion globale des matières (Dashboard → Matières)
+     * Une matière existe une seule fois, mais peut être affectée à plusieurs classes.
      */
-    public function index($classe)
+    public function index()
+    {
+        $matieres = DB::table('matieres')
+            ->leftJoin('classe_matiere', 'matieres.id', '=', 'classe_matiere.matiere_id')
+            ->select(
+                'matieres.id',
+                'matieres.nom',
+                DB::raw('COUNT(classe_matiere.classe_id) as classes_count')
+            )
+            ->groupBy('matieres.id', 'matieres.nom')
+            ->orderBy('matieres.nom')
+            ->get();
+
+        return view('matieres.manage', compact('matieres'));
+    }
+
+    /**
+     * ✅ Liste des matières affectées à une classe (Parcours pédagogique : Classe → Matière)
+     */
+    public function indexClasse($classe)
     {
         $classeRow = DB::table('classes')->where('id', $classe)->first();
         abort_if(!$classeRow, 404);
@@ -48,7 +68,7 @@ class MatiereController extends Controller
             'updated_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Matière créée.');
+        return redirect()->route('matieres.index')->with('success', 'Matière créée.');
     }
 
     /**
@@ -78,7 +98,7 @@ class MatiereController extends Controller
                 'updated_at' => now(),
             ]);
 
-        return redirect()->back()->with('success', 'Matière mise à jour.');
+        return redirect()->route('matieres.index')->with('success', 'Matière mise à jour.');
     }
 
     /**
@@ -86,8 +106,12 @@ class MatiereController extends Controller
      */
     public function destroy($matiere)
     {
-        DB::table('matieres')->where('id', $matiere)->delete();
-        return redirect()->back()->with('success', 'Matière supprimée.');
+        DB::transaction(function () use ($matiere) {
+            DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
+            DB::table('matieres')->where('id', $matiere)->delete();
+        });
+
+        return redirect()->route('matieres.index')->with('success', 'Matière supprimée.');
     }
 
     /**
@@ -105,10 +129,7 @@ class MatiereController extends Controller
             ->pluck('classe_id')
             ->toArray();
 
-        return view(
-            'matieres.affecter',
-            compact('matiereRow', 'classes', 'classesAffectees')
-        );
+        return view('matieres.affecter', compact('matiereRow', 'classes', 'classesAffectees'));
     }
 
     /**
@@ -116,10 +137,18 @@ class MatiereController extends Controller
      */
     public function storeAffectation(Request $request, $matiere)
     {
-        DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
+        $request->validate([
+            'classes' => 'nullable|array',
+            'classes.*' => 'integer|exists:classes,id',
+        ]);
 
-        if ($request->has('classes')) {
-            foreach ($request->classes as $classeId) {
+        DB::transaction(function () use ($request, $matiere) {
+
+            DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
+
+            $classes = $request->input('classes', []);
+
+            foreach ($classes as $classeId) {
                 DB::table('classe_matiere')->insert([
                     'matiere_id' => $matiere,
                     'classe_id' => $classeId,
@@ -127,8 +156,8 @@ class MatiereController extends Controller
                     'updated_at' => now(),
                 ]);
             }
-        }
+        });
 
-        return redirect()->back()->with('success', 'Affectations mises à jour.');
+        return redirect()->route('matieres.index')->with('success', 'Affectations mises à jour.');
     }
 }

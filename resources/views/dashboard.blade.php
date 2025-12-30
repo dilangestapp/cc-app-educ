@@ -33,12 +33,12 @@
                     </p>
                 </a>
 
-                <!-- Matières (via classes) -->
-                <a href="{{ route('classes.index') }}"
+                <!-- Matières (gestion globale) -->
+                <a href="{{ route('matieres.index') }}"
                    class="bg-white p-6 rounded-lg shadow hover:shadow-md transition block">
                     <h3 class="text-lg font-semibold">📚 Matières</h3>
                     <p class="text-gray-600 mt-2">
-                        Parcours : Classe → Matière
+                        Créer / Modifier / Supprimer / Affecter aux classes
                     </p>
                 </a>
 
