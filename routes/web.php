@@ -24,11 +24,12 @@ Route::get('/dashboard', function () {
 /*
 |--------------------------------------------------------------------------
 | Authenticated routes
-|--------------------------------------------------------------------------
-*/
+|--------------------------------------------------------------------------*/
 Route::middleware('auth')->group(function () {
 
+    // =========================
     // Profil utilisateur (Breeze)
+    // =========================
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -40,8 +41,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/classes/create', [ClasseController::class, 'create'])->name('classes.create');
     Route::post('/classes', [ClasseController::class, 'store'])->name('classes.store');
 
+    // (optionnel mais conseillé) CRUD complet classes si tu l'as dans le controller
+    // Route::get('/classes/{classe}', [ClasseController::class, 'show'])->name('classes.show');
+    // Route::get('/classes/{classe}/edit', [ClasseController::class, 'edit'])->name('classes.edit');
+    // Route::put('/classes/{classe}', [ClasseController::class, 'update'])->name('classes.update');
+    // Route::delete('/classes/{classe}', [ClasseController::class, 'destroy'])->name('classes.destroy');
+
     // =========================
-    // MATIERES — GESTION GLOBALE (IMPORTANT)
+    // MATIERES — GESTION GLOBALE
     // =========================
     Route::get('/matieres', [MatiereController::class, 'manage'])->name('matieres.manage');
 

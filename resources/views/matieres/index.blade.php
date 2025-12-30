@@ -4,76 +4,31 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 📚 Matières — {{ $classeRow->nom }}
             </h2>
-
-            <div class="flex gap-2">
-                <a href="{{ route('matieres.create') }}"
-                   class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    ➕ Créer une matière
-                </a>
-            </div>
+            <a href="{{ route('classes.index') }}" class="text-sm text-gray-600 hover:underline">Retour</a>
         </div>
     </x-slot>
 
     <div class="py-10">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            <div class="bg-white shadow rounded-lg">
-                <div class="p-6">
-
-                    @if ($matieres->isEmpty())
-                        <p class="text-gray-600">
-                            Aucune matière n’est encore affectée à cette classe.
-                        </p>
-                    @else
-                        <table class="w-full border border-gray-200">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="border px-4 py-2 text-left">Matière</th>
-                                    <th class="border px-4 py-2 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($matieres as $matiere)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="border px-4 py-2 font-medium">
-                                            📘 {{ $matiere->nom }}
-                                        </td>
-                                        <td class="border px-4 py-2 text-center space-x-3">
-
-                                            <a href="{{ route('matieres.affecter', $matiere->id) }}"
-                                               class="text-indigo-600 hover:underline">
-                                                🔗 Affecter
-                                            </a>
-
-                                            <a href="{{ route('matieres.edit', $matiere->id) }}"
-                                               class="text-blue-600 hover:underline">
-                                                ✏️ Modifier
-                                            </a>
-
-                                            <form action="{{ route('matieres.destroy', $matiere->id) }}"
-                                                  method="POST"
-                                                  class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button
-                                                    onclick="return confirm('Supprimer cette matière ?')"
-                                                    class="text-red-600 hover:underline">
-                                                    🗑️ Supprimer
-                                                </button>
-                                            </form>
-
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    @endif
-
-                    <p class="text-sm text-gray-500 mt-4">
-                        Une matière est créée une seule fois et peut être affectée à plusieurs classes.
-                    </p>
-
-                </div>
+            <div class="bg-white shadow-sm rounded-lg p-6">
+                @if($matieres->count() === 0)
+                    <p class="text-gray-700">Aucune matière affectée à cette classe.</p>
+                    <p class="text-gray-600 mt-2">Va dans <strong>Gestion des matières</strong> pour affecter.</p>
+                    <a href="{{ route('matieres.manage') }}"
+                       class="inline-flex mt-4 px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">
+                        Aller à Gestion des matières
+                    </a>
+                @else
+                    <ul class="space-y-2">
+                        @foreach($matieres as $m)
+                            <li class="p-3 border rounded flex items-center justify-between">
+                                <span class="font-medium text-gray-900">{{ $m->nom }}</span>
+                                <span class="text-sm text-gray-500">Cours (bientôt)</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
 
         </div>

@@ -1,118 +1,99 @@
 <x-app-layout>
     <x-slot name="header">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-            <h2 style="font-weight:700; font-size:20px; line-height:1.2; color:#111827;">
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 📚 Gestion des matières
             </h2>
 
-            <a href="{{ route('dashboard') }}"
-               style="font-size:14px; color:#2563eb; text-decoration:underline;">
-                Retour
-            </a>
-        </div>
-    </x-slot>
-
-    <div style="padding:32px 0;">
-        <div style="max-width:1100px; margin:0 auto; padding:0 16px;">
-
-            {{-- ✅ Barre d’actions (toujours visible, style inline) --}}
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px;">
-                <div style="font-size:14px; color:#4b5563;">
-                    Gestion globale : une matière existe une seule fois, puis on l’affecte aux classes.
-                </div>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('dashboard') }}" class="text-sm text-gray-600 hover:underline">
+                    Retour
+                </a>
 
                 <a href="{{ route('matieres.create') }}"
-                   style="display:inline-block; padding:10px 14px; border-radius:8px;
-                          background:#2563eb; color:#ffffff; font-size:14px; font-weight:700;
-                          text-decoration:none;">
+                   class="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700">
                     + Nouvelle matière
                 </a>
             </div>
+        </div>
+    </x-slot>
+
+    <div class="py-10">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             @if(session('success'))
-                <div style="margin-bottom:14px; padding:10px 12px; border-radius:8px; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
+                <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
                     {{ session('success') }}
                 </div>
             @endif
 
-            <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
-                <div style="padding:18px;">
+            @if($errors->any())
+                <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+                    <ul class="list-disc pl-5 space-y-1">
+                        @foreach($errors->all() as $e)
+                            <li>{{ $e }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
+            <div class="bg-white shadow-sm rounded-lg p-6">
+                <p class="text-gray-600">
+                    Gestion globale : une matière existe une seule fois, puis on l’affecte aux classes.
+                </p>
+                <div class="mt-4 p-3 border rounded bg-gray-50 text-sm">
+                    ✅ Une matière existe une seule fois, mais peut être affectée à plusieurs classes.
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm rounded-lg">
+                <div class="p-6">
                     @if($matieres->count() === 0)
-                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                            <p style="margin:0; color:#374151;">
-                                Aucune matière. Clique sur “Nouvelle matière”.
-                            </p>
-
-                            {{-- ✅ Deuxième bouton (dans le bloc vide) --}}
-                            <a href="{{ route('matieres.create') }}"
-                               style="display:inline-block; padding:10px 14px; border-radius:8px;
-                                      background:#111827; color:#ffffff; font-size:14px; font-weight:700;
-                                      text-decoration:none;">
-                                + Nouvelle matière
-                            </a>
-                        </div>
+                        <p class="text-gray-700">Aucune matière. Clique sur <strong>“Nouvelle matière”</strong>.</p>
                     @else
-                        <div style="overflow-x:auto;">
-                            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
                                 <thead>
-                                    <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
-                                        <th style="padding:10px 8px;">Nom</th>
-                                        <th style="padding:10px 8px;">Classes affectées</th>
-                                        <th style="padding:10px 8px; text-align:right;">Actions</th>
-                                    </tr>
+                                <tr class="text-left border-b">
+                                    <th class="py-3">Nom</th>
+                                    <th class="py-3">Classes liées</th>
+                                    <th class="py-3 text-right">Actions</th>
+                                </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($matieres as $m)
-                                        <tr style="border-bottom:1px solid #f3f4f6;">
-                                            <td style="padding:10px 8px; font-weight:600; color:#111827;">
-                                                {{ $m->nom }}
-                                            </td>
+                                @foreach($matieres as $m)
+                                    <tr class="border-b">
+                                        <td class="py-3 font-medium text-gray-900">{{ $m->nom }}</td>
+                                        <td class="py-3 text-gray-700">{{ $m->classes_count }}</td>
+                                        <td class="py-3">
+                                            <div class="flex justify-end gap-2">
+                                                <a href="{{ route('matieres.affecter', $m->id) }}"
+                                                   class="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                                                    Affecter
+                                                </a>
 
-                                            <td style="padding:10px 8px; color:#374151;">
-                                                {{ $m->classes_count }}
-                                            </td>
+                                                <a href="{{ route('matieres.edit', $m->id) }}"
+                                                   class="px-3 py-2 rounded bg-gray-800 text-white hover:bg-gray-900">
+                                                    Modifier
+                                                </a>
 
-                                            <td style="padding:10px 8px;">
-                                                <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
-                                                    <a href="{{ route('matieres.affecter', $m->id) }}"
-                                                       style="display:inline-block; padding:7px 10px; border-radius:8px;
-                                                              background:#4f46e5; color:#ffffff; text-decoration:none; font-size:12px; font-weight:700;">
-                                                        Affecter
-                                                    </a>
-
-                                                    <a href="{{ route('matieres.edit', $m->id) }}"
-                                                       style="display:inline-block; padding:7px 10px; border-radius:8px;
-                                                              background:#e5e7eb; color:#111827; text-decoration:none; font-size:12px; font-weight:700;">
-                                                        Modifier
-                                                    </a>
-
-                                                    <form action="{{ route('matieres.destroy', $m->id) }}"
-                                                          method="POST"
-                                                          onsubmit="return confirm('Supprimer cette matière ?');"
-                                                          style="display:inline;">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit"
-                                                            style="padding:7px 10px; border-radius:8px;
-                                                                   background:#dc2626; color:#ffffff; border:none; cursor:pointer;
-                                                                   font-size:12px; font-weight:700;">
-                                                            Supprimer
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
+                                                <form method="POST" action="{{ route('matieres.destroy', $m->id) }}"
+                                                      onsubmit="return confirm('Supprimer cette matière ?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit"
+                                                            class="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700">
+                                                        Supprimer
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
                                 </tbody>
                             </table>
                         </div>
                     @endif
-
-                    <div style="margin-top:16px; font-size:13px; color:#1e3a8a; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px;">
-                        ✅ Une matière existe une seule fois, mais peut être affectée à plusieurs classes.
-                    </div>
-
                 </div>
             </div>
 
