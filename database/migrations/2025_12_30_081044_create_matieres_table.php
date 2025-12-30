@@ -8,11 +8,12 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('matieres', function (Blueprint $table) {
-            $table->id();
-            $table->string('nom');
-            $table->foreignId('classe_id')->constrained('classes')->cascadeOnDelete();
-            $table->timestamps();
-        });
+    $table->id();
+    $table->foreignId('classe_id')->constrained()->cascadeOnDelete();
+    $table->string('nom');
+    $table->timestamps();
+});
+
     }
 
     public function down(): void
