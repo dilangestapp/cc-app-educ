@@ -18,31 +18,31 @@
             <!-- Cartes principales -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
-                <!-- Élèves -->
+                <!-- Élèves (à venir) -->
                 <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
                     <h3 class="text-lg font-semibold">👨‍🎓 Élèves</h3>
                     <p class="text-gray-600 mt-2">Accès élèves (à venir)</p>
                 </div>
 
-                <!-- Classes -->
+                <!-- Classes (point d'entrée) -->
                 <a href="{{ route('classes.index') }}"
                    class="bg-white p-6 rounded-lg shadow hover:shadow-md transition block">
                     <h3 class="text-lg font-semibold">🏫 Classes</h3>
                     <p class="text-gray-600 mt-2">
-                        Gestion des classes
+                        Accéder aux matières et cours par classe
                     </p>
                 </a>
 
-                <!-- Classes -->
-<a href="{{ route('classes.index') }}"
-   class="bg-white p-6 rounded-lg shadow hover:shadow-md transition block">
-    <h3 class="text-lg font-semibold">🏫 Classes</h3>
-    <p class="text-gray-600 mt-2">
-        Accéder aux matières et cours par classe
-    </p>
-</a>
+                <!-- Matières (via classes) -->
+                <a href="{{ route('classes.index') }}"
+                   class="bg-white p-6 rounded-lg shadow hover:shadow-md transition block">
+                    <h3 class="text-lg font-semibold">📚 Matières</h3>
+                    <p class="text-gray-600 mt-2">
+                        Parcours : Classe → Matière
+                    </p>
+                </a>
 
-                <!-- Notes -->
+                <!-- Notes / Quiz (à venir) -->
                 <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
                     <h3 class="text-lg font-semibold">📊 Notes</h3>
                     <p class="text-gray-600 mt-2">Évaluations (à venir)</p>
