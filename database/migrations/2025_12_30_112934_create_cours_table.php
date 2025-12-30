@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // ✅ Si la table existe déjà (créée avant), on ne la recrée pas
+        // ✅ FIX: Si la table "cours" existe déjà, on ne recrée pas (évite le crash Railway)
         if (Schema::hasTable('cours')) {
             return;
         }
@@ -16,14 +16,17 @@ return new class extends Migration
         Schema::create('cours', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('matiere_id')
-                ->constrained('matieres')
-                ->cascadeOnDelete();
-
+            $table->unsignedBigInteger('matiere_id');
             $table->string('titre', 255);
             $table->text('contenu')->nullable();
 
             $table->timestamps();
+
+            // FK (si ta table matieres existe bien)
+            $table->foreign('matiere_id')
+                ->references('id')
+                ->on('matieres')
+                ->onDelete('cascade');
         });
     }
 
