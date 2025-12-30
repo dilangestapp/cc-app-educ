@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            ➕ Créer une matière
+            ✏️ Modifier la matière
         </h2>
     </x-slot>
 
@@ -10,8 +10,9 @@
 
             <div class="bg-white shadow rounded-lg p-6">
 
-                <form method="POST" action="{{ route('matieres.store') }}">
+                <form method="POST" action="{{ route('matieres.update', $matiereRow->id) }}">
                     @csrf
+                    @method('PUT')
 
                     <div class="mb-4">
                         <label class="block font-medium mb-1">
@@ -19,8 +20,8 @@
                         </label>
                         <input type="text"
                                name="nom"
+                               value="{{ $matiereRow->nom }}"
                                required
-                               placeholder="Ex : Mathématiques"
                                class="w-full border rounded px-3 py-2">
                     </div>
 

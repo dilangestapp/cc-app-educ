@@ -44,11 +44,37 @@ Route::middleware('auth')->group(function () {
     Route::post('/classes', [ClasseController::class, 'store'])->name('classes.store');
 
     // =========================
-    // Matières (liées à une classe)
+    // Matières (GLOBAL + affectation)
     // =========================
-    Route::get('/classes/{classe}/matieres', [MatiereController::class, 'index'])->name('matieres.index');
-    Route::get('/classes/{classe}/matieres/create', [MatiereController::class, 'create'])->name('matieres.create');
-    Route::post('/classes/{classe}/matieres', [MatiereController::class, 'store'])->name('matieres.store');
+
+    // Liste des matières d’une classe (via table pivot)
+    Route::get('/classes/{classe}/matieres', [MatiereController::class, 'index'])
+        ->name('matieres.index');
+
+    // CRUD Matière (matière existe UNE SEULE FOIS)
+    Route::get('/matieres/create', [MatiereController::class, 'create'])
+        ->name('matieres.create');
+
+    Route::post('/matieres', [MatiereController::class, 'store'])
+        ->name('matieres.store');
+
+    Route::get('/matieres/{matiere}/edit', [MatiereController::class, 'edit'])
+        ->name('matieres.edit');
+
+    Route::put('/matieres/{matiere}', [MatiereController::class, 'update'])
+        ->name('matieres.update');
+
+    Route::delete('/matieres/{matiere}', [MatiereController::class, 'destroy'])
+        ->name('matieres.destroy');
+
+    // =========================
+    // Affectation matière ↔ classe
+    // =========================
+    Route::get('/matieres/{matiere}/affecter', [MatiereController::class, 'affecter'])
+        ->name('matieres.affecter');
+
+    Route::post('/matieres/{matiere}/affecter', [MatiereController::class, 'storeAffectation'])
+        ->name('matieres.affecter.store');
 
 });
 
