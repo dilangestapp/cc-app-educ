@@ -23,12 +23,20 @@
                     <p class="text-gray-600 mt-2">Gestion des élèves</p>
                 </div>
 
-                <a href="{{ route('classes.index') }}" class="block hover:bg-gray-50 transition">
-                    <div class="bg-white p-6 rounded-lg shadow">
+                {{-- Carte Classes protégée --}}
+                @if (Route::has('classes.index'))
+                    <a href="{{ route('classes.index') }}" class="block hover:bg-gray-50 transition">
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-lg font-semibold">🏫 Classes</h3>
+                            <p class="text-gray-600 mt-2">Organisation des classes</p>
+                        </div>
+                    </a>
+                @else
+                    <div class="bg-white p-6 rounded-lg shadow opacity-50 cursor-not-allowed">
                         <h3 class="text-lg font-semibold">🏫 Classes</h3>
-                        <p class="text-gray-600 mt-2">Organisation des classes</p>
+                        <p class="text-gray-600 mt-2">Organisation des classes (bientôt)</p>
                     </div>
-                </a>
+                @endif
 
                 <div class="bg-white p-6 rounded-lg shadow">
                     <h3 class="text-lg font-semibold">👨‍🏫 Enseignants</h3>
