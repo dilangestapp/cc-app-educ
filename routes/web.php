@@ -33,6 +33,8 @@ Route::middleware('auth')->group(function () {
 
     // Classes — PHASE 4 (structure pédagogique)
     Route::get('/classes', [ClasseController::class, 'index'])->name('classes.index');
+   Route::get('/classes/create', [ClasseController::class, 'create'])->name('classes.create');
+Route::post('/classes', [ClasseController::class, 'store'])->name('classes.store');
 
 });
 

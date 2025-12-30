@@ -2,6 +2,11 @@
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Classes — CC APP EDUC
+            <a href="{{ route('classes.create') }}"
+   class="inline-block mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+    ➕ Créer une classe
+</a>
+
         </h2>
     </x-slot>
 
