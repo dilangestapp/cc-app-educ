@@ -3,18 +3,27 @@
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">📚 Gestion des matières</h2>
 
-            <div class="flex gap-2">
-                <a href="{{ route('dashboard') }}"
-                   class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm">Retour</a>
-
-                <a href="{{ route('matieres.create') }}"
-                   class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">+ Nouvelle matière</a>
-            </div>
+            <a href="{{ route('dashboard') }}"
+               class="text-sm text-gray-600 hover:text-gray-900 underline">
+                Retour
+            </a>
         </div>
     </x-slot>
 
     <div class="py-10">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+
+            {{-- ✅ Barre d’actions (toujours visible) --}}
+            <div class="flex items-center justify-between mb-6">
+                <div class="text-sm text-gray-600">
+                    Gestion globale : une matière existe une seule fois, puis on l’affecte aux classes.
+                </div>
+
+                <a href="{{ route('matieres.create') }}"
+                   class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
+                    + Nouvelle matière
+                </a>
+            </div>
 
             @if(session('success'))
                 <div class="mb-4 p-3 rounded bg-green-50 border border-green-200 text-green-800">
