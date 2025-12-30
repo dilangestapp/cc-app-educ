@@ -26,12 +26,9 @@ Route::get('/dashboard', function () {
 | Authenticated routes
 |--------------------------------------------------------------------------
 */
+Route::middleware('auth')->group(function () {
 
-Route::middleware(['auth', 'verified'])->group(function () {
-
-    // =========================
     // Profil utilisateur (Breeze)
-    // =========================
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -44,29 +41,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/classes', [ClasseController::class, 'store'])->name('classes.store');
 
     // =========================
-    // Matières — gestion globale
+    // MATIERES — GESTION GLOBALE (IMPORTANT)
     // =========================
-    Route::get('/matieres', [MatiereController::class, 'index'])->name('matieres.index');
+    Route::get('/matieres', [MatiereController::class, 'manage'])->name('matieres.manage');
+
     Route::get('/matieres/create', [MatiereController::class, 'create'])->name('matieres.create');
     Route::post('/matieres', [MatiereController::class, 'store'])->name('matieres.store');
+
     Route::get('/matieres/{matiere}/edit', [MatiereController::class, 'edit'])->name('matieres.edit');
     Route::put('/matieres/{matiere}', [MatiereController::class, 'update'])->name('matieres.update');
+
     Route::delete('/matieres/{matiere}', [MatiereController::class, 'destroy'])->name('matieres.destroy');
 
-    // =========================
-    // Matières d’une classe (parcours pédagogique)
-    // =========================
-    Route::get('/classes/{classe}/matieres', [MatiereController::class, 'indexClasse'])
-        ->name('classes.matieres.index');
+    // Affectation matière ↔ classes
+    Route::get('/matieres/{matiere}/affecter', [MatiereController::class, 'affecter'])->name('matieres.affecter');
+    Route::post('/matieres/{matiere}/affecter', [MatiereController::class, 'storeAffectation'])->name('matieres.affecter.store');
 
     // =========================
-    // Affectations (matière → classes)
+    // MATIERES D’UNE CLASSE (parcours pédagogique)
     // =========================
-    Route::get('/matieres/{matiere}/affecter', [MatiereController::class, 'affecter'])
-        ->name('matieres.affecter');
+    Route::get('/classes/{classe}/matieres', [MatiereController::class, 'indexByClasse'])->name('matieres.classe');
 
-    Route::post('/matieres/{matiere}/affecter', [MatiereController::class, 'storeAffectation'])
-        ->name('matieres.affecter.store');
 });
 
 require __DIR__ . '/auth.php';

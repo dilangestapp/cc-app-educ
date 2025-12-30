@@ -34,13 +34,13 @@
                 </a>
 
                 <!-- Matières (gestion globale) -->
-                <a href="{{ route('matieres.index') }}"
-                   class="bg-white p-6 rounded-lg shadow hover:shadow-md transition block">
-                    <h3 class="text-lg font-semibold">📚 Matières</h3>
-                    <p class="text-gray-600 mt-2">
-                        Créer / Modifier / Supprimer / Affecter aux classes
-                    </p>
-                </a>
+                <a href="{{ route('matieres.manage') }}"
+   class="bg-white p-6 rounded-lg shadow hover:shadow-md transition block">
+    <h3 class="text-lg font-semibold">📚 Matières</h3>
+    <p class="text-gray-600 mt-2">
+        Gestion globale + affectation par classe
+    </p>
+</a>
 
                 <!-- Notes / Quiz (à venir) -->
                 <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">

@@ -15,16 +15,8 @@ class Matiere extends Model
         'nom',
     ];
 
-    /**
-     * Une matière peut appartenir à plusieurs classes (pivot classe_matiere)
-     */
     public function classes()
     {
-        return $this->belongsToMany(
-            \App\Models\Classe::class,
-            'classe_matiere',
-            'matiere_id',
-            'classe_id'
-        )->withTimestamps();
+        return $this->belongsToMany(Classe::class, 'classe_matiere', 'matiere_id', 'classe_id');
     }
 }
