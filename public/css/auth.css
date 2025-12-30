@@ -1,10 +1,7 @@
-/* =================================================
-   CC App Educ — Auth UI
-   Style: Modern Soft SaaS (Warm Gradient)
-   ================================================= */
-body {
-    background: red !important;
-}
+/* =====================================================
+   CC App Educ — Login UI
+   Style: Modern / Soft / Professional
+   ===================================================== */
 
 * {
     box-sizing: border-box;
@@ -14,7 +11,7 @@ body {
 body {
     margin: 0;
     min-height: 100vh;
-    background: linear-gradient(135deg, #3b1d0f 0%, #8a4b2a 45%, #d9a066 100%);
+    background: linear-gradient(135deg, #3b1d0f 0%, #8a4b2a 45%, #c58b5a 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -29,116 +26,66 @@ body {
 
 /* Card */
 .auth-card {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(14px);
-    border-radius: 20px;
-    padding: 36px 30px;
-    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.35);
     color: #fff;
 }
 
-/* Header */
-.auth-header {
-    margin-bottom: 30px;
-}
-
+/* Title */
 .auth-title {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 700;
-    margin: 0;
+    margin-bottom: 6px;
 }
 
 .auth-subtitle {
     font-size: 14px;
     opacity: 0.85;
-    margin-top: 6px;
-}
-
-/* Form */
-.auth-form {
-    margin-top: 20px;
-}
-
-.form-group {
-    margin-bottom: 18px;
+    margin-bottom: 24px;
 }
 
 /* Inputs */
-.input-wrapper {
-    display: flex;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.92);
-    border-radius: 999px;
-    padding: 12px 16px;
+.auth-field {
+    margin-bottom: 16px;
 }
 
-.input-wrapper span {
-    font-size: 16px;
-    margin-right: 10px;
-    color: #6b4a2f;
-}
-
-.input-wrapper input {
+.auth-field input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
     border: none;
     outline: none;
-    width: 100%;
     font-size: 14px;
-    background: transparent;
-    color: #333;
 }
 
-/* Options */
-.auth-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 13px;
-    margin-top: 6px;
-}
-
-.auth-options label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.auth-options a {
-    color: #ffe1c4;
-    text-decoration: none;
-}
-
-.auth-options a:hover {
-    text-decoration: underline;
-}
-
-/* Submit */
-.auth-submit {
-    margin-top: 28px;
-    display: flex;
-    justify-content: flex-end;
-}
-
-.auth-submit button {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
+/* Button */
+.auth-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
     border: none;
     background: #ffffff;
-    color: #8a4b2a;
-    font-size: 22px;
-    font-weight: bold;
+    color: #3b1d0f;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: 0.2s;
 }
 
-.auth-submit button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+.auth-btn:hover {
+    background: #f2f2f2;
 }
 
-/* Errors */
-.auth-error {
-    font-size: 12px;
-    color: #ffd6d6;
-    margin-top: 6px;
+/* Links */
+.auth-links {
+    margin-top: 14px;
+    text-align: center;
+}
+
+.auth-links a {
+    color: #fff;
+    font-size: 13px;
+    text-decoration: underline;
 }

@@ -19,3 +19,5 @@ yarn-error.log
 /.vscode
 !public/build/
 !public/build/**
+!public/css/
+!public/css/*.css
