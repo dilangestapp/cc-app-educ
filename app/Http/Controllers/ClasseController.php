@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
 
-public function index()
+class ClasseController extends Controller
 {
-    $classes = DB::table('classes')->orderBy('id')->get();
+    public function index()
+    {
+        $classes = DB::table('classes')->orderBy('id')->get();
 
-    return view('classes.index', compact('classes'));
-}
-
+        return view('classes.index', compact('classes'));
+    }
 }

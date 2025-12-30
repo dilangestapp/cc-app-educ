@@ -13,17 +13,16 @@
                     <p class="text-lg font-semibold mb-2">🏫 Gestion des classes</p>
 
                     @if ($classes->isEmpty())
-    <p class="text-gray-600">
-        Aucune classe n’a encore été créée.
-    </p>
-@else
-    <ul class="list-disc list-inside text-gray-700">
-        @foreach ($classes as $classe)
-            <li>{{ $classe->nom }}</li>
-        @endforeach
-    </ul>
-@endif
-
+                        <p class="text-gray-600">
+                            Aucune classe n’a encore été créée.
+                        </p>
+                    @else
+                        <ul class="list-disc list-inside text-gray-700">
+                            @foreach ($classes as $classe)
+                                <li>{{ $classe->nom }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
 
                     <p class="text-sm text-gray-500 mt-4">
                         Cette section sera utilisée pour organiser les classes avant l’ajout des matières.
