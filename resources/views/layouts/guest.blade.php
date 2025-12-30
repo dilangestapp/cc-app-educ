@@ -8,25 +8,27 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/images/logo.png">
 
-    <!-- CSS AUTH (LOCAL, VERSIONNÉ) -->
+    <!-- CSS AUTH LOCAL -->
     <link rel="stylesheet" href="/css/auth.css?v={{ time() }}">
 </head>
 <body>
 
     <div class="auth-wrapper">
 
-        <!-- BRAND GLOBAL (toutes pages accueil) -->
+        <!-- BRANDING UNIQUE -->
         <div class="brand">
-            <img src="/images/logo.png" alt="CC App Educ Logo">
-            <div class="brand-name">
+            <img src="/images/logo.png" alt="CC App Educ Logo" class="brand-logo">
+
+            <h1 class="brand-name">
                 CC <span>APP EDUC</span>
-            </div>
-            <div class="brand-tagline">
+            </h1>
+
+            <p class="brand-tagline">
                 Plateforme éducative sécurisée
-            </div>
+            </p>
         </div>
 
-        <!-- CONTENU PAGE (login, reset, etc.) -->
+        <!-- CONTENU (login, reset, etc.) -->
         {{ $slot }}
 
     </div>

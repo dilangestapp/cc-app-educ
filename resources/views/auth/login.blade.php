@@ -1,9 +1,6 @@
 <x-guest-layout>
     <div class="auth-card">
 
-        <div class="auth-title">CC App Educ</div>
-        <div class="auth-subtitle">Plateforme éducative sécurisée</div>
-
         <form method="POST" action="{{ route('login') }}">
             @csrf
 
