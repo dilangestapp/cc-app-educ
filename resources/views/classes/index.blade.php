@@ -1,9 +1,27 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="text-xl font-semibold">Classes</h2>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Classes — CC APP EDUC
+        </h2>
     </x-slot>
 
-    <div class="p-6">
-        <p>Page Classes OK</p>
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900">
+                    <p class="text-lg font-semibold mb-2">🏫 Gestion des classes</p>
+
+                    <p class="text-gray-600">
+                        Aucune classe n’a encore été créée.
+                    </p>
+
+                    <p class="text-sm text-gray-500 mt-4">
+                        Cette section sera utilisée pour organiser les classes avant l’ajout des matières.
+                    </p>
+                </div>
+            </div>
+
+        </div>
     </div>
 </x-app-layout>
