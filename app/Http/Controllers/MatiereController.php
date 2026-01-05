@@ -9,62 +9,83 @@ use Illuminate\Support\Facades\Schema;
 class MatiereController extends Controller
 {
     /**
-     * Page de gestion globale des matières (UNE matière existe une seule fois)
-     * URL: /matieres
+     * /matieres
+     * Gestion globale (anti-500 : si table absente -> message clair)
      */
     public function manage()
     {
+        if (!Schema::hasTable('matieres')) {
+            return view('matieres.manage', [
+                'matieres' => collect(),
+                'error' => "La table 'matieres' n'existe pas encore en base. Lance les migrations en production (Railway) : php artisan migrate --force",
+            ]);
+        }
+
         $matieres = DB::table('matieres')->orderBy('nom')->get();
-        return view('matieres.manage', compact('matieres'));
+
+        return view('matieres.manage', [
+            'matieres' => $matieres,
+            'error' => null,
+        ]);
     }
 
     /**
-     * Matières d’une classe (parcours pédagogique)
-     * URL: /classes/{classe}/matieres
+     * /classes/{classe}/matieres
      */
     public function indexByClasse($classe)
     {
-        $classeRow = DB::table('classes')->where('id', (int)$classe)->first();
+        $classeId = (int) $classe;
+
+        if (!Schema::hasTable('classes')) {
+            abort(500, "La table 'classes' n'existe pas.");
+        }
+
+        $classeRow = DB::table('classes')->where('id', $classeId)->first();
         abort_if(!$classeRow, 404);
+
+        // Si pivot absent, on ne plante pas : on montre vide
+        if (!Schema::hasTable('classe_matiere') || !Schema::hasTable('matieres')) {
+            return view('matieres.classe', [
+                'classeRow' => $classeRow,
+                'matieres'  => collect(),
+                'error'     => "Tables manquantes (matieres / classe_matiere). Lance les migrations en production.",
+            ]);
+        }
 
         $matieres = DB::table('matieres')
             ->join('classe_matiere', 'matieres.id', '=', 'classe_matiere.matiere_id')
-            ->where('classe_matiere.classe_id', (int)$classe)
+            ->where('classe_matiere.classe_id', $classeId)
             ->select('matieres.*')
             ->orderBy('matieres.nom')
             ->get();
 
-        return view('matieres.classe', compact('classeRow', 'matieres'));
+        return view('matieres.classe', [
+            'classeRow' => $classeRow,
+            'matieres'  => $matieres,
+            'error'     => null,
+        ]);
     }
 
-    /**
-     * Formulaire création matière
-     */
     public function create()
     {
         return view('matieres.create');
     }
 
-    /**
-     * Enregistrer une matière (UNE SEULE FOIS)
-     */
     public function store(Request $request)
     {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante. Lance les migrations.");
+
         $request->validate([
             'nom' => 'required|string|max:255|unique:matieres,nom',
         ]);
 
-        $data = [
-            'nom' => trim((string) $request->nom),
-        ];
+        $data = ['nom' => trim((string)$request->nom)];
 
-        // ✅ Compat legacy: si une colonne classe_id existe dans matieres (ancien schéma),
-        // on la renseigne pour éviter un crash NOT NULL.
+        // Compat legacy : si colonne classe_id existe et NOT NULL, on met 0.
         if (Schema::hasColumn('matieres', 'classe_id')) {
             $data['classe_id'] = $this->isNullableColumn('matieres', 'classe_id') ? null : 0;
         }
 
-        // Safe timestamps (si colonnes existent)
         if (Schema::hasColumn('matieres', 'created_at')) $data['created_at'] = now();
         if (Schema::hasColumn('matieres', 'updated_at')) $data['updated_at'] = now();
 
@@ -73,102 +94,96 @@ class MatiereController extends Controller
         return redirect()->route('matieres.manage')->with('success', 'Matière créée.');
     }
 
-    /**
-     * Formulaire édition matière
-     */
     public function edit($matiere)
     {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante. Lance les migrations.");
+
         $matiereRow = DB::table('matieres')->where('id', (int)$matiere)->first();
         abort_if(!$matiereRow, 404);
 
         return view('matieres.edit', compact('matiereRow'));
     }
 
-    /**
-     * Mise à jour matière
-     */
     public function update(Request $request, $matiere)
     {
-        $matiere = (int)$matiere;
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante. Lance les migrations.");
+
+        $matiereId = (int)$matiere;
 
         $request->validate([
-            'nom' => 'required|string|max:255|unique:matieres,nom,' . $matiere,
+            'nom' => 'required|string|max:255|unique:matieres,nom,' . $matiereId,
         ]);
 
-        $data = ['nom' => trim((string) $request->nom)];
+        $data = ['nom' => trim((string)$request->nom)];
         if (Schema::hasColumn('matieres', 'updated_at')) $data['updated_at'] = now();
 
-        DB::table('matieres')->where('id', $matiere)->update($data);
+        DB::table('matieres')->where('id', $matiereId)->update($data);
 
         return redirect()->route('matieres.manage')->with('success', 'Matière mise à jour.');
     }
 
-    /**
-     * Supprimer matière (et ses affectations)
-     */
     public function destroy($matiere)
     {
-        $matiere = (int)$matiere;
+        $matiereId = (int)$matiere;
 
-        DB::transaction(function () use ($matiere) {
-            DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
-            DB::table('matieres')->where('id', $matiere)->delete();
+        DB::transaction(function () use ($matiereId) {
+            if (Schema::hasTable('classe_matiere')) {
+                DB::table('classe_matiere')->where('matiere_id', $matiereId)->delete();
+            }
+            if (Schema::hasTable('matieres')) {
+                DB::table('matieres')->where('id', $matiereId)->delete();
+            }
         });
 
         return redirect()->route('matieres.manage')->with('success', 'Matière supprimée.');
     }
 
-    /**
-     * Page d’affectation matière → classes
-     */
     public function affecter($matiere)
     {
-        $matiere = (int)$matiere;
+        $matiereId = (int)$matiere;
 
-        $matiereRow = DB::table('matieres')->where('id', $matiere)->first();
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante. Lance les migrations.");
+        abort_if(!Schema::hasTable('classes'), 500, "Table 'classes' manquante.");
+        abort_if(!Schema::hasTable('classe_matiere'), 500, "Table 'classe_matiere' manquante. Lance les migrations.");
+
+        $matiereRow = DB::table('matieres')->where('id', $matiereId)->first();
         abort_if(!$matiereRow, 404);
 
         $classes = DB::table('classes')->orderBy('nom')->get();
 
         $classesAffectees = DB::table('classe_matiere')
-            ->where('matiere_id', $matiere)
+            ->where('matiere_id', $matiereId)
             ->pluck('classe_id')
             ->toArray();
 
         return view('matieres.affecter', compact('matiereRow', 'classes', 'classesAffectees'));
     }
 
-    /**
-     * Enregistrer affectations
-     */
     public function storeAffectation(Request $request, $matiere)
     {
-        $matiere = (int)$matiere;
+        $matiereId = (int)$matiere;
+
+        abort_if(!Schema::hasTable('classe_matiere'), 500, "Table 'classe_matiere' manquante. Lance les migrations.");
 
         $classes = $request->input('classes', []);
         if (!is_array($classes)) $classes = [];
 
-        // ✅ Validation basique des IDs
         $classes = array_values(array_unique(array_map('intval', $classes)));
         $classes = array_filter($classes, fn($id) => $id > 0);
 
-        DB::transaction(function () use ($matiere, $classes) {
+        DB::transaction(function () use ($matiereId, $classes) {
+            DB::table('classe_matiere')->where('matiere_id', $matiereId)->delete();
 
-            // reset
-            DB::table('classe_matiere')->where('matiere_id', $matiere)->delete();
+            if (!count($classes)) return;
 
-            if (!count($classes)) {
-                return;
-            }
-
-            $rows = [];
             $hasCreated = Schema::hasColumn('classe_matiere', 'created_at');
             $hasUpdated = Schema::hasColumn('classe_matiere', 'updated_at');
             $now = now();
 
+            $rows = [];
             foreach ($classes as $classeId) {
                 $row = [
-                    'matiere_id' => $matiere,
+                    'matiere_id' => $matiereId,
                     'classe_id'  => (int)$classeId,
                 ];
                 if ($hasCreated) $row['created_at'] = $now;
@@ -182,9 +197,6 @@ class MatiereController extends Controller
         return redirect()->route('matieres.manage')->with('success', 'Affectations mises à jour.');
     }
 
-    /**
-     * Détecter si une colonne est nullable (MySQL / PostgreSQL)
-     */
     private function isNullableColumn(string $table, string $column): bool
     {
         try {
@@ -210,9 +222,7 @@ class MatiereController extends Controller
                 );
                 return isset($row->is_nullable) && strtoupper((string)$row->is_nullable) === 'YES';
             }
-        } catch (\Throwable $e) {
-            // fallback
-        }
+        } catch (\Throwable $e) {}
 
         return false;
     }
