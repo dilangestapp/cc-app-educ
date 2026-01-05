@@ -1,10 +1,25 @@
 <x-app-layout>
     <x-slot name="header">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Gestion des matières</h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <a href="{{ route('dashboard') }}" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300">Retour</a>
-                <a href="{{ route('matieres.create') }}" class="px-3 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">+ Nouvelle matière</a>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                    Gestion des matières
+                </h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    Crée, modifie, supprime et affecte les matières aux classes.
+                </p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="{{ route('dashboard') }}"
+                   class="inline-flex items-center px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50">
+                    Retour
+                </a>
+
+                <a href="{{ route('matieres.create') }}"
+                   class="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
+                    + Nouvelle matière
+                </a>
             </div>
         </div>
     </x-slot>
@@ -12,49 +27,87 @@
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
+            {{-- Alert table missing / warning --}}
             @if (!empty($error))
-                <div class="mb-4 p-3 rounded bg-yellow-100 text-yellow-900">
+                <div class="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-3 text-yellow-900">
                     {{ $error }}
                 </div>
             @endif
 
+            {{-- Success message --}}
             @if (session('success'))
-                <div class="mb-4 p-3 rounded bg-green-100 text-green-800">
+                <div class="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-green-800">
                     {{ session('success') }}
                 </div>
             @endif
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
+            <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
+                <div class="p-6">
 
                     @if (!$matieres || count($matieres) === 0)
-                        <p>Aucune matière pour le moment.</p>
+                        <div class="text-center py-10">
+                            <div class="text-gray-700 font-medium">Aucune matière pour le moment.</div>
+                            <div class="text-gray-500 text-sm mt-1">
+                                Clique sur “Nouvelle matière” pour commencer.
+                            </div>
+                            <div class="mt-4">
+                                <a href="{{ route('matieres.create') }}"
+                                   class="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
+                                    + Nouvelle matière
+                                </a>
+                            </div>
+                        </div>
                     @else
-                        <table class="min-w-full border">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="border px-3 py-2 text-left">Matière</th>
-                                    <th class="border px-3 py-2 text-left" style="width:320px;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($matieres as $m)
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+                                <thead class="bg-gray-50">
                                     <tr>
-                                        <td class="border px-3 py-2">{{ $m->nom }}</td>
-                                        <td class="border px-3 py-2" style="display:flex;gap:8px;flex-wrap:wrap;">
-                                            <a class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300" href="{{ route('matieres.edit', $m->id) }}">Modifier</a>
-                                            <a class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700" href="{{ route('matieres.affecter', $m->id) }}">Affecter</a>
-
-                                            <form method="POST" action="{{ route('matieres.destroy', $m->id) }}" onsubmit="return confirm('Supprimer cette matière ?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700" type="submit">Supprimer</button>
-                                            </form>
-                                        </td>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                            Matière
+                                        </th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                            Actions
+                                        </th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+
+                                <tbody class="divide-y divide-gray-200">
+                                    @foreach ($matieres as $m)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3">
+                                                <div class="font-medium text-gray-900">{{ $m->nom }}</div>
+                                            </td>
+
+                                            <td class="px-4 py-3">
+                                                <div class="flex items-center justify-end gap-2 flex-wrap">
+
+                                                    <a href="{{ route('matieres.affecter', $m->id) }}"
+                                                       class="inline-flex items-center px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                                                        Affecter
+                                                    </a>
+
+                                                    <a href="{{ route('matieres.edit', $m->id) }}"
+                                                       class="inline-flex items-center px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50">
+                                                        Modifier
+                                                    </a>
+
+                                                    <form method="POST" action="{{ route('matieres.destroy', $m->id) }}"
+                                                          onsubmit="return confirm('Supprimer la matière : {{ addslashes($m->nom) }} ?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                                class="inline-flex items-center px-3 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">
+                                                            Supprimer
+                                                        </button>
+                                                    </form>
+
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
 
                 </div>
