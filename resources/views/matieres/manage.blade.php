@@ -1,9 +1,7 @@
 <x-app-layout>
     <style>
-        /* Neutraliser le fond Breeze sur CETTE page */
         .min-h-screen.bg-gray-100 { background: transparent !important; }
 
-        /* Navbar Breeze => glass dark (peu visible) */
         header, nav {
             background: rgba(8, 12, 16, .45) !important;
             backdrop-filter: blur(10px) !important;
@@ -12,10 +10,6 @@
         nav a, nav button, nav span, nav div { color: rgba(255,255,255,.88) !important; }
         nav a:hover, nav button:hover { color: #fff !important; }
 
-        /* ==============================
-           ✅ FIX : supprimer les textes noirs/gris hérités
-           (Breeze met souvent text-gray-xxx)
-        ============================== */
         body, main, .min-h-screen, .glass-card, table, th, td, p, h1, h2, h3, label, span, a, small, strong, em {
             color: rgba(255,255,255,.90);
         }
@@ -25,7 +19,6 @@
         thead th { color: rgba(255,255,255,.60) !important; }
         tbody td { color: rgba(255,255,255,.88) !important; }
 
-        /* Cards / inputs */
         .glass-card {
             background: rgba(255,255,255,.06);
             border: 1px solid rgba(255,255,255,.10);
@@ -43,7 +36,6 @@
             border-color: rgba(99,102,241,.55);
         }
 
-        /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
@@ -55,8 +47,9 @@
             font-weight: 600;
             transition: .15s ease-in-out;
             white-space: nowrap;
+            border: 1px solid transparent;
         }
-        .btn-ghost { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.10); color: #fff; }
+        .btn-ghost { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.12); color: #fff; }
         .btn-ghost:hover { background: rgba(255,255,255,.16); }
 
         .btn-primary { background: rgb(79 70 229); color: #fff; }
@@ -68,7 +61,6 @@
         .btn-danger { background: rgb(220 38 38); color: #fff; }
         .btn-danger:hover { background: rgb(185 28 28); }
 
-        /* Tags */
         .tag {
             display:inline-flex;
             align-items:center;
@@ -80,7 +72,17 @@
             color: rgba(187,247,208,.95) !important;
         }
 
-        /* Petit badge vertical décoratif (style magazine) */
+        .chip {
+            display:inline-flex;
+            align-items:center;
+            padding:.25rem .65rem;
+            border-radius:9999px;
+            font-size:.75rem;
+            border:1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.07);
+            color: rgba(255,255,255,.88) !important;
+        }
+
         .vertical-label {
             position: absolute;
             right: 18px;
@@ -101,7 +103,6 @@
         <div class="min-h-screen bg-black/60">
             <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-                {{-- Alerts --}}
                 <div class="space-y-2 mb-4">
                     @if (!empty($error))
                         <div class="rounded-xl border border-yellow-400/30 bg-yellow-300/10 px-4 py-3 text-yellow-100">
@@ -118,11 +119,9 @@
 
                 @php $count = $matieres ? count($matieres) : 0; @endphp
 
-                {{-- Carte principale --}}
                 <div class="glass-card rounded-2xl overflow-hidden shadow-lg relative">
                     <div class="vertical-label">MATIÈRES</div>
 
-                    {{-- Toolbar compacte --}}
                     <div class="p-4 sm:p-5 border-b border-white/10">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -133,12 +132,10 @@
                                 </div>
                                 <div class="mt-1 flex items-center gap-3">
                                     <h1 class="text-xl sm:text-2xl font-bold text-white">Gestion des matières</h1>
-                                    <span class="text-xs px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-white/80">
-                                        {{ $count }} matière(s)
-                                    </span>
+                                    <span class="chip">{{ $count }} matière(s)</span>
                                 </div>
                                 <p class="mt-1 text-sm text-white/70">
-                                    Crée, organise et affecte les matières aux classes.
+                                    Crée, organise, affecte… et gère le contenu (cours) par matière.
                                 </p>
                             </div>
 
@@ -148,7 +145,6 @@
                             </div>
                         </div>
 
-                        {{-- Recherche --}}
                         <div class="mt-4">
                             <input id="matiereSearch"
                                    type="text"
@@ -157,7 +153,6 @@
                         </div>
                     </div>
 
-                    {{-- Contenu --}}
                     <div class="p-4 sm:p-5">
                         @if (!$matieres || $count === 0)
                             <div class="text-center py-10">
@@ -176,6 +171,8 @@
                                     <thead class="bg-white/5">
                                         <tr class="text-left text-xs uppercase tracking-wider text-white/55">
                                             <th class="py-3 px-4">Matière</th>
+                                            <th class="py-3 px-4">Classes</th>
+                                            <th class="py-3 px-4">Cours</th>
                                             <th class="py-3 px-4">Statut</th>
                                             <th class="py-3 px-4 text-right">Actions</th>
                                         </tr>
@@ -183,6 +180,10 @@
 
                                     <tbody id="matiereTableBody" class="divide-y divide-white/10">
                                         @foreach ($matieres as $m)
+                                            @php
+                                                $classesCount = (int)($m->classes_count ?? 0);
+                                                $coursCount = (int)($m->cours_count ?? 0);
+                                            @endphp
                                             <tr class="hover:bg-white/5 transition" data-name="{{ strtolower($m->nom) }}">
                                                 <td class="py-4 px-4">
                                                     <div class="flex items-center gap-3">
@@ -197,11 +198,23 @@
                                                 </td>
 
                                                 <td class="py-4 px-4">
+                                                    <span class="chip">{{ $classesCount }}</span>
+                                                </td>
+
+                                                <td class="py-4 px-4">
+                                                    <span class="chip">{{ $coursCount }}</span>
+                                                </td>
+
+                                                <td class="py-4 px-4">
                                                     <span class="tag">Active</span>
                                                 </td>
 
                                                 <td class="py-4 px-4">
                                                     <div class="flex items-center justify-end gap-2 flex-wrap">
+                                                        <a href="{{ route('cours.index', $m->id) }}" class="btn btn-ghost">
+                                                            Cours
+                                                        </a>
+
                                                         <a href="{{ route('matieres.affecter', $m->id) }}" class="btn btn-blue">
                                                             Affecter
                                                         </a>
@@ -211,7 +224,7 @@
                                                         </a>
 
                                                         <form method="POST" action="{{ route('matieres.destroy', $m->id) }}"
-                                                              onsubmit="return confirm('Supprimer la matière : {{ addslashes($m->nom) }} ?');">
+                                                              onsubmit="return confirm('Supprimer la matière : {{ addslashes($m->nom) }} ? (Les cours liés seront supprimés)');">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="btn btn-danger">

@@ -11,6 +11,7 @@ class MatiereController extends Controller
     /**
      * /matieres
      * Gestion globale (anti-500 : si table absente -> message clair)
+     * + compteurs classes/cours si tables présentes
      */
     public function manage()
     {
@@ -21,7 +22,38 @@ class MatiereController extends Controller
             ]);
         }
 
-        $matieres = DB::table('matieres')->orderBy('nom')->get();
+        $hasPivot = Schema::hasTable('classe_matiere');
+        $hasCours = Schema::hasTable('cours');
+
+        // Base query
+        $query = DB::table('matieres as m')
+            ->select('m.id', 'm.nom');
+
+        $needGroupBy = false;
+
+        // classes_count
+        if ($hasPivot) {
+            $query->leftJoin('classe_matiere as cm', 'm.id', '=', 'cm.matiere_id');
+            $query->addSelect(DB::raw('COUNT(DISTINCT cm.classe_id) as classes_count'));
+            $needGroupBy = true;
+        } else {
+            $query->addSelect(DB::raw('0 as classes_count'));
+        }
+
+        // cours_count
+        if ($hasCours) {
+            $query->leftJoin('cours as c', 'm.id', '=', 'c.matiere_id');
+            $query->addSelect(DB::raw('COUNT(DISTINCT c.id) as cours_count'));
+            $needGroupBy = true;
+        } else {
+            $query->addSelect(DB::raw('0 as cours_count'));
+        }
+
+        if ($needGroupBy) {
+            $query->groupBy('m.id', 'm.nom');
+        }
+
+        $matieres = $query->orderBy('m.nom')->get();
 
         return view('matieres.manage', [
             'matieres' => $matieres,
@@ -52,12 +84,29 @@ class MatiereController extends Controller
             ]);
         }
 
-        $matieres = DB::table('matieres')
-            ->join('classe_matiere', 'matieres.id', '=', 'classe_matiere.matiere_id')
-            ->where('classe_matiere.classe_id', $classeId)
-            ->select('matieres.*')
-            ->orderBy('matieres.nom')
-            ->get();
+        $hasCours = Schema::hasTable('cours');
+
+        if ($hasCours) {
+            // Avec compteur de cours pour cette classe
+            $matieres = DB::table('matieres as m')
+                ->join('classe_matiere as cm', 'm.id', '=', 'cm.matiere_id')
+                ->leftJoin('cours as c', function ($join) use ($classeId) {
+                    $join->on('m.id', '=', 'c.matiere_id')
+                         ->where('c.classe_id', '=', $classeId);
+                })
+                ->where('cm.classe_id', $classeId)
+                ->selectRaw('m.id, m.nom, COUNT(DISTINCT c.id) as cours_count')
+                ->groupBy('m.id', 'm.nom')
+                ->orderBy('m.nom')
+                ->get();
+        } else {
+            $matieres = DB::table('matieres as m')
+                ->join('classe_matiere as cm', 'm.id', '=', 'cm.matiere_id')
+                ->where('cm.classe_id', $classeId)
+                ->select('m.*')
+                ->orderBy('m.nom')
+                ->get();
+        }
 
         return view('matieres.classe', [
             'classeRow' => $classeRow,
@@ -127,9 +176,15 @@ class MatiereController extends Controller
         $matiereId = (int)$matiere;
 
         DB::transaction(function () use ($matiereId) {
+            // supprime les cours liés (si table existe)
+            if (Schema::hasTable('cours')) {
+                DB::table('cours')->where('matiere_id', $matiereId)->delete();
+            }
+
             if (Schema::hasTable('classe_matiere')) {
                 DB::table('classe_matiere')->where('matiere_id', $matiereId)->delete();
             }
+
             if (Schema::hasTable('matieres')) {
                 DB::table('matieres')->where('id', $matiereId)->delete();
             }
