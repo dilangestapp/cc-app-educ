@@ -7,14 +7,43 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
-        <!-- (Optionnel) ⚠️ Fonts externes = dépendance Internet -->
+        {{-- ⚠️ (Optionnel) fonts externes: dépend d'internet --}}
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
         <style>
-            html, body { width: 100%; }
+            html, body { width: 100%; max-width: 100%; overflow-x: auto; }
+            main { width: 100%; max-width: 100%; }
+
+            /* ✅ FIX GLOBAL: tableaux toujours visibles sur mobile */
+            @media (max-width: 640px) {
+
+                /* le tableau devient scrollable horizontalement */
+                table {
+                    display: block !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch;
+                    border-collapse: separate;
+                }
+
+                /* empêche les colonnes d’être compressées/coupées */
+                thead, tbody, tr {
+                    display: table;
+                    width: max-content;
+                    table-layout: auto;
+                }
+
+                th, td {
+                    white-space: nowrap !important;
+                }
+
+                /* si une section parent bloque le scroll, on force */
+                .overflow-x-auto { overflow-x: auto !important; }
+            }
         </style>
     </head>
 
