@@ -21,6 +21,18 @@
         <div class="min-h-screen bg-black/60">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+                {{-- Messages success / error --}}
+                @if (session('success'))
+                    <div class="mb-4 rounded-xl border border-green-400/25 bg-green-300/10 px-4 py-3 text-green-100">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                @if (session('error'))
+                    <div class="mb-4 rounded-xl border border-yellow-400/25 bg-yellow-300/10 px-4 py-3 text-yellow-100">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
                 @if ($errors->any())
                     <div class="mb-4 rounded-xl border border-red-400/25 bg-red-300/10 px-4 py-3 text-red-100">
                         <ul class="list-disc ml-5">
@@ -43,7 +55,30 @@
                                 <h1 class="mt-1 text-xl font-bold text-white">Nouveau cours — {{ $matiereRow->nom }}</h1>
                                 <p class="mt-1 text-sm text-white/70">Crée un cours rattaché à une classe.</p>
                             </div>
-                            <a href="{{ route('cours.index', $matiereRow->id) }}" class="btn btn-ghost">← Retour</a>
+
+                            {{-- Actions (Importer + Retour) --}}
+                            <div class="flex items-center gap-2 flex-wrap">
+                                {{-- ✅ Import Word/PDF -> poste sur cours.store avec _action=import --}}
+                                <form id="importCoursForm" method="POST" action="{{ route('cours.store', $matiereRow->id) }}" enctype="multipart/form-data" class="inline-flex items-center gap-2">
+                                    @csrf
+                                    <input type="hidden" name="_action" value="import">
+                                    <input type="file"
+                                           name="fichier"
+                                           id="importCoursFile"
+                                           accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                           class="hidden"
+                                           onchange="document.getElementById('importCoursForm').submit();">
+                                    <button type="button" class="btn btn-ghost" onclick="document.getElementById('importCoursFile').click();">
+                                        📥 Importer Word/PDF
+                                    </button>
+                                </form>
+
+                                <a href="{{ route('cours.index', $matiereRow->id) }}" class="btn btn-ghost">← Retour</a>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-xs text-white/60">
+                            Import : <b>DOCX</b> recommandé. PDF supporté si le parseur PDF est installé.
                         </div>
                     </div>
 

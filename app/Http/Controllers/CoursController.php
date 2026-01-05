@@ -45,6 +45,45 @@ class CoursController extends Controller
 
         $matiereId = (int)$matiere;
 
+        // ======================================================
+        // ✅ IMPORT depuis la page create (pas besoin de routes)
+        // ======================================================
+        if ($request->input('_action') === 'import') {
+            $request->validate([
+                'fichier' => 'required|file|max:15360|mimes:docx,pdf',
+            ]);
+
+            $file = $request->file('fichier');
+            $ext  = strtolower($file->getClientOriginalExtension());
+            $path = $file->getRealPath();
+
+            $text = $this->extractTextFromFile($path, $ext);
+
+            if (trim((string)$text) === '') {
+                $msg = ($ext === 'pdf')
+                    ? "Impossible de lire le PDF. (PDF parser non installé) — utilise DOCX, ou installe smalot/pdfparser."
+                    : "Impossible de lire le fichier Word. (DOCX uniquement)";
+
+                return redirect()
+                    ->route('cours.create', $matiereId)
+                    ->with('error', $msg);
+            }
+
+            $title = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+            return redirect()
+                ->route('cours.create', $matiereId)
+                ->withInput([
+                    'titre'   => $title ?: old('titre', ''),
+                    'contenu' => $text,
+                    'actif'   => 1,
+                ])
+                ->with('success', 'Fichier importé : Titre et Contenu pré-remplis.');
+        }
+
+        // ======================================================
+        // ✅ Création normale
+        // ======================================================
         $request->validate([
             'classe_id' => 'required|integer|min:1',
             'titre'     => 'required|string|max:255',
@@ -124,55 +163,8 @@ class CoursController extends Controller
     }
 
     // ======================================================
-    // ✅ IMPORT COURS (Word/PDF → préremplit create)
+    // Extraction (DOCX/PDF)
     // ======================================================
-    public function importForm($matiere)
-    {
-        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
-
-        $matiereId = (int)$matiere;
-        $matiereRow = DB::table('matieres')->where('id', $matiereId)->first();
-        abort_if(!$matiereRow, 404);
-
-        return view('cours.import', compact('matiereRow'));
-    }
-
-    public function importStore(Request $request, $matiere)
-    {
-        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
-
-        $matiereId = (int)$matiere;
-
-        $request->validate([
-            'fichier' => 'required|file|max:15360|mimes:docx,pdf',
-        ]);
-
-        $file = $request->file('fichier');
-        $ext  = strtolower($file->getClientOriginalExtension());
-        $path = $file->getRealPath();
-
-        $text = $this->extractTextFromFile($path, $ext);
-
-        if (trim($text) === '') {
-            return redirect()->route('cours.import', $matiereId)
-                ->with('error', $ext === 'pdf'
-                    ? "Impossible de lire le PDF. Installe : composer require smalot/pdfparser (ou utilise DOCX)."
-                    : "Impossible de lire le fichier Word. (DOCX uniquement)");
-        }
-
-        $title = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-
-        // ✅ Redirige vers create avec contenu déjà rempli (si ta vue utilise old())
-        return redirect()
-            ->route('cours.create', $matiereId)
-            ->withInput([
-                'titre'   => $title,
-                'contenu' => $text,
-                'actif'   => 1,
-            ])
-            ->with('success', 'Fichier importé : contenu pré-rempli.');
-    }
-
     private function extractTextFromFile(string $path, string $ext): string
     {
         if ($ext === 'docx') return $this->extractTextFromDocx($path);
