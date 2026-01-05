@@ -22,6 +22,15 @@
         .chip { display:inline-flex; align-items:center; padding:.25rem .65rem; border-radius:9999px; font-size:.75rem; border:1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: rgba(255,255,255,.88) !important; }
         .tag-on { border:1px solid rgba(34,197,94,.25); background: rgba(34,197,94,.10); color: rgba(187,247,208,.95) !important; }
         .tag-off { border:1px solid rgba(244,63,94,.25); background: rgba(244,63,94,.10); color: rgba(254,205,211,.95) !important; }
+
+        /* ✅ RESPONSIVE GARANTI (sans dépendre de Tailwind build) */
+        .only-mobile { display: none; }
+        .only-desktop { display: block; }
+
+        @media (max-width: 640px) {
+            .only-mobile { display: block !important; }
+            .only-desktop { display: none !important; }
+        }
     </style>
 
     <div class="min-h-screen"
@@ -100,8 +109,8 @@
                             </div>
                         @else
 
-                            {{-- ✅ MOBILE: cartes (tout visible) --}}
-                            <div id="coursCards" class="sm:hidden space-y-3">
+                            {{-- ✅ MOBILE: cartes --}}
+                            <div id="coursCards" class="only-mobile space-y-3">
                                 @foreach($cours as $c)
                                     @php $actif = (int)($c->actif ?? 1); @endphp
                                     <div class="rounded-2xl border border-white/10 bg-white/5 p-4" data-name="{{ strtolower($c->titre ?? '') }}">
@@ -135,9 +144,9 @@
                             </div>
 
                             {{-- ✅ DESKTOP: table --}}
-                            <div id="coursTableWrap" class="hidden sm:block">
+                            <div id="coursTableWrap" class="only-desktop">
                                 <div class="overflow-x-auto rounded-xl border border-white/10">
-                                    <table class="min-w-[760px] w-full">
+                                    <table class="w-full" style="min-width:760px;">
                                         <thead class="bg-white/5">
                                             <tr class="text-left text-xs uppercase tracking-wider text-white/55">
                                                 <th class="py-3 px-4">Titre</th>
@@ -205,17 +214,14 @@
 
                                     function filterAll() {
                                         const q = (input && input.value ? input.value : '').trim().toLowerCase();
-
                                         let visible = 0;
 
                                         if (body) {
-                                            const rows = Array.from(body.querySelectorAll('tr'));
-                                            visible = Math.max(visible, filterNodes(rows, q));
+                                            visible = Math.max(visible, filterNodes(Array.from(body.querySelectorAll('tr')), q));
                                         }
 
                                         if (cards) {
-                                            const cardItems = Array.from(cards.querySelectorAll('[data-name]'));
-                                            visible = Math.max(visible, filterNodes(cardItems, q));
+                                            visible = Math.max(visible, filterNodes(Array.from(cards.querySelectorAll('[data-name]')), q));
                                         }
 
                                         if (empty) empty.classList.toggle('hidden', visible !== 0);
@@ -224,6 +230,7 @@
                                     if (input) input.addEventListener('input', filterAll);
                                 })();
                             </script>
+
                         @endif
                     </div>
                 </div>
