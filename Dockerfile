@@ -2,11 +2,9 @@ FROM php:8.2-cli-alpine
 
 WORKDIR /app
 
-# ✅ Ajout GD (+ deps jpeg/freetype/png) pour phpoffice/phpword
-RUN apk add --no-cache \
-    bash git unzip \
-    icu-dev libzip-dev oniguruma-dev postgresql-dev \
-    freetype-dev libpng-dev libjpeg-turbo-dev \
+RUN apk add --no-cache bash git unzip icu-dev libzip-dev oniguruma-dev postgresql-dev \
+  freetype-dev libjpeg-turbo-dev libpng-dev \
+  poppler-utils \
   && docker-php-ext-configure gd --with-freetype --with-jpeg \
   && docker-php-ext-install intl mbstring zip pdo pdo_mysql pdo_pgsql gd
 

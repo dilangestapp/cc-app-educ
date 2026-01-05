@@ -46,7 +46,7 @@ class CoursController extends Controller
         $matiereId = (int)$matiere;
 
         // ======================================================
-        // ✅ IMPORT depuis la page create (pas besoin de routes)
+        // ✅ IMPORT depuis la page create (sans routes supplémentaires)
         // ======================================================
         if ($request->input('_action') === 'import') {
             $request->validate([
@@ -61,7 +61,7 @@ class CoursController extends Controller
 
             if (trim((string)$text) === '') {
                 $msg = ($ext === 'pdf')
-                    ? "Impossible de lire le PDF. (PDF parser non installé) — utilise DOCX, ou installe smalot/pdfparser."
+                    ? "PDF illisible (police encodée ou PDF scanné). ✅ Solution: exporte un PDF avec texte sélectionnable, ou utilise DOCX."
                     : "Impossible de lire le fichier Word. (DOCX uniquement)";
 
                 return redirect()
@@ -167,8 +167,8 @@ class CoursController extends Controller
     // ======================================================
     private function extractTextFromFile(string $path, string $ext): string
     {
-        if ($ext === 'docx') return $this->extractTextFromDocx($path);
-        if ($ext === 'pdf')  return $this->extractTextFromPdf($path);
+        if ($ext === 'docx') return $this->cleanText($this->extractTextFromDocx($path));
+        if ($ext === 'pdf')  return $this->cleanText($this->extractTextFromPdf($path));
         return '';
     }
 
@@ -194,14 +194,79 @@ class CoursController extends Controller
 
     private function extractTextFromPdf(string $path): string
     {
-        if (!class_exists(\Smalot\PdfParser\Parser::class)) return '';
+        $text = '';
 
-        try {
-            $parser = new \Smalot\PdfParser\Parser();
-            $pdf = $parser->parseFile($path);
-            return (string)$pdf->getText();
-        } catch (\Throwable $e) {
-            return '';
+        // 1) ✅ Meilleur: pdftotext (poppler-utils)
+        if (function_exists('shell_exec')) {
+            $cmd = 'pdftotext -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
+            $out = @shell_exec($cmd);
+            if (is_string($out)) {
+                $text = $out;
+                if ($this->looksGarbled($text)) {
+                    $text = '';
+                }
+            }
         }
+
+        // 2) Fallback: smalot/pdfparser (si dispo)
+        if ($text === '' && class_exists(\Smalot\PdfParser\Parser::class)) {
+            try {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($path);
+                $t = (string)$pdf->getText();
+                if (!$this->looksGarbled($t)) {
+                    $text = $t;
+                }
+            } catch (\Throwable $e) {
+                $text = '';
+            }
+        }
+
+        return (string)$text;
+    }
+
+    private function cleanText(string $text): string
+    {
+        $text = str_replace("\0", '', $text);
+
+        // Force UTF-8 (ignore invalid bytes)
+        if (function_exists('iconv')) {
+            $fixed = @iconv('UTF-8', 'UTF-8//IGNORE', $text);
+            if (is_string($fixed)) $text = $fixed;
+        }
+
+        // Normalize line endings
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+
+        // Remove weird control chars (except \n and \t)
+        $text = preg_replace('/[^\P{C}\n\t]+/u', '', $text) ?? $text;
+
+        // Clean extra spaces/newlines
+        $text = preg_replace("/[ \t]+\n/", "\n", $text) ?? $text;
+        $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
+
+        return trim($text);
+    }
+
+    private function looksGarbled(string $text): bool
+    {
+        $text = (string)$text;
+        if (trim($text) === '') return true;
+
+        // Trop de "�" = encodage foireux
+        $len = strlen($text);
+        if ($len <= 0) return true;
+
+        $rep = substr_count($text, "�");
+        if ($rep > 0 && ($rep / max(1, $len)) > 0.03) return true;
+
+        // Beaucoup de caractères non imprimables
+        $bad = preg_match_all('/[^\p{L}\p{N}\p{P}\p{Zs}\n\r\t]/u', $text, $m);
+        if ($bad === false) return true;
+
+        // Si trop de "bad chars", on considère que c’est du charabia
+        if ($bad > 200) return true;
+
+        return false;
     }
 }
