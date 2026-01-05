@@ -6,7 +6,8 @@ RUN apk add --no-cache bash git unzip icu-dev libzip-dev oniguruma-dev postgresq
   freetype-dev libjpeg-turbo-dev libpng-dev \
   poppler-utils \
   && docker-php-ext-configure gd --with-freetype --with-jpeg \
-  && docker-php-ext-install intl mbstring zip pdo pdo_mysql pdo_pgsql gd
+  && docker-php-ext-install intl mbstring zip pdo pdo_mysql pdo_pgsql gd \
+  && printf "upload_max_filesize=50M\npost_max_size=50M\nmemory_limit=256M\nmax_execution_time=120\n" > /usr/local/etc/php/conf.d/zz-uploads.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

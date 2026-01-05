@@ -46,27 +46,59 @@ class CoursController extends Controller
         $matiereId = (int)$matiere;
 
         // ======================================================
-        // ✅ IMPORT depuis la page create (sans routes supplémentaires)
+        // ✅ IMPORT depuis la page create
         // ======================================================
         if ($request->input('_action') === 'import') {
+
+            // 1) ✅ Validation simple + tolérante (mimes parfois faux côté serveur)
             $request->validate([
-                'fichier' => 'required|file|max:15360|mimes:docx,pdf',
+                'fichier' => 'required|file|max:51200', // 50MB
             ]);
 
-            $file = $request->file('fichier');
-            $ext  = strtolower($file->getClientOriginalExtension());
-            $path = $file->getRealPath();
+            // 2) ✅ Si l’upload PHP a échoué (taille / proxy / etc.)
+            if (!$request->hasFile('fichier')) {
+                return redirect()->route('cours.create', $matiereId)
+                    ->with('error', "Aucun fichier reçu. Si c’est un PDF lourd, augmente la taille ou réessaie après le redeploy (upload_max_filesize/post_max_size).");
+            }
 
-            $text = $this->extractTextFromFile($path, $ext);
+            $file = $request->file('fichier');
+            if (!$file->isValid()) {
+                $err = $file->getError();
+                return redirect()->route('cours.create', $matiereId)
+                    ->with('error', "Upload échoué (code $err). Souvent dû à la taille du PDF. Réessaie après le redeploy.");
+            }
+
+            $ext = strtolower((string)$file->getClientOriginalExtension());
+            if (!in_array($ext, ['docx','pdf'], true)) {
+                return redirect()->route('cours.create', $matiereId)
+                    ->with('error', "Format non supporté. Utilise DOCX ou PDF.");
+            }
+
+            // 3) ✅ On copie le fichier dans storage (chemin stable)
+            $tmpDir = storage_path('app/tmp_imports');
+            if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0775, true); }
+
+            $tmpName = uniqid('import_', true) . '.' . $ext;
+            $tmpPath = $tmpDir . DIRECTORY_SEPARATOR . $tmpName;
+
+            try {
+                $file->move($tmpDir, $tmpName);
+            } catch (\Throwable $e) {
+                return redirect()->route('cours.create', $matiereId)
+                    ->with('error', "Impossible de sauvegarder le fichier importé (permissions storage).");
+            }
+
+            $text = $this->extractTextFromFile($tmpPath, $ext);
+
+            // Nettoyage du fichier temporaire
+            @unlink($tmpPath);
 
             if (trim((string)$text) === '') {
                 $msg = ($ext === 'pdf')
-                    ? "PDF illisible (police encodée ou PDF scanné). ✅ Solution: exporte un PDF avec texte sélectionnable, ou utilise DOCX."
+                    ? "PDF sans texte lisible (souvent scanné ou police encodée). ✅ Solution: utilise un PDF avec texte sélectionnable, ou un DOCX."
                     : "Impossible de lire le fichier Word. (DOCX uniquement)";
 
-                return redirect()
-                    ->route('cours.create', $matiereId)
-                    ->with('error', $msg);
+                return redirect()->route('cours.create', $matiereId)->with('error', $msg);
             }
 
             $title = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
@@ -194,55 +226,43 @@ class CoursController extends Controller
 
     private function extractTextFromPdf(string $path): string
     {
-        $text = '';
-
-        // 1) ✅ Meilleur: pdftotext (poppler-utils)
-        if (function_exists('shell_exec')) {
+        // ✅ On privilégie pdftotext (poppler-utils)
+        if ($this->canUseShellExec()) {
             $cmd = 'pdftotext -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
             $out = @shell_exec($cmd);
-            if (is_string($out)) {
-                $text = $out;
-                if ($this->looksGarbled($text)) {
-                    $text = '';
-                }
+            if (is_string($out) && !$this->looksGarbled($out)) {
+                return $out;
             }
         }
 
-        // 2) Fallback: smalot/pdfparser (si dispo)
-        if ($text === '' && class_exists(\Smalot\PdfParser\Parser::class)) {
-            try {
-                $parser = new \Smalot\PdfParser\Parser();
-                $pdf = $parser->parseFile($path);
-                $t = (string)$pdf->getText();
-                if (!$this->looksGarbled($t)) {
-                    $text = $t;
-                }
-            } catch (\Throwable $e) {
-                $text = '';
-            }
+        // Fallback : rien (tu peux garder pdfparser si tu veux, mais pdftotext suffit)
+        return '';
+    }
+
+    private function canUseShellExec(): bool
+    {
+        if (!function_exists('shell_exec')) return false;
+
+        $disabled = (string)ini_get('disable_functions');
+        if ($disabled !== '') {
+            $list = array_map('trim', explode(',', $disabled));
+            if (in_array('shell_exec', $list, true)) return false;
         }
 
-        return (string)$text;
+        return true;
     }
 
     private function cleanText(string $text): string
     {
         $text = str_replace("\0", '', $text);
 
-        // Force UTF-8 (ignore invalid bytes)
         if (function_exists('iconv')) {
             $fixed = @iconv('UTF-8', 'UTF-8//IGNORE', $text);
             if (is_string($fixed)) $text = $fixed;
         }
 
-        // Normalize line endings
         $text = str_replace(["\r\n", "\r"], "\n", $text);
-
-        // Remove weird control chars (except \n and \t)
         $text = preg_replace('/[^\P{C}\n\t]+/u', '', $text) ?? $text;
-
-        // Clean extra spaces/newlines
-        $text = preg_replace("/[ \t]+\n/", "\n", $text) ?? $text;
         $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
 
         return trim($text);
@@ -253,19 +273,11 @@ class CoursController extends Controller
         $text = (string)$text;
         if (trim($text) === '') return true;
 
-        // Trop de "�" = encodage foireux
         $len = strlen($text);
         if ($len <= 0) return true;
 
         $rep = substr_count($text, "�");
         if ($rep > 0 && ($rep / max(1, $len)) > 0.03) return true;
-
-        // Beaucoup de caractères non imprimables
-        $bad = preg_match_all('/[^\p{L}\p{N}\p{P}\p{Zs}\n\r\t]/u', $text, $m);
-        if ($bad === false) return true;
-
-        // Si trop de "bad chars", on considère que c’est du charabia
-        if ($bad > 200) return true;
 
         return false;
     }
