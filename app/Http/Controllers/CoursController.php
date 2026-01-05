@@ -8,110 +8,57 @@ use Illuminate\Support\Facades\Schema;
 
 class CoursController extends Controller
 {
-    /**
-     * /matieres/{matiere}/cours
-     */
-    public function index(Request $request, $matiere)
-    {
-        if (!Schema::hasTable('matieres')) {
-            abort(500, "La table 'matieres' n'existe pas.");
-        }
-
-        $matiereId = (int)$matiere;
-        $matiereRow = DB::table('matieres')->where('id', $matiereId)->first();
-        abort_if(!$matiereRow, 404);
-
-        if (!Schema::hasTable('cours')) {
-            return view('cours.index', [
-                'matiereRow' => $matiereRow,
-                'cours' => collect(),
-                'classes' => collect(),
-                'classeFilter' => 0,
-                'error' => "La table 'cours' n'existe pas encore. Lance les migrations en production : php artisan migrate --force",
-            ]);
-        }
-
-        $classeFilter = (int)($request->query('classe', 0));
-        $hasClasses = Schema::hasTable('classes');
-        $classes = $hasClasses ? DB::table('classes')->orderBy('nom')->get() : collect();
-
-        $q = DB::table('cours as c')
-            ->where('c.matiere_id', $matiereId)
-            ->orderBy('c.id', 'desc');
-
-        if ($classeFilter > 0) {
-            $q->where('c.classe_id', $classeFilter);
-        }
-
-        if ($hasClasses) {
-            $q->leftJoin('classes as cl', 'cl.id', '=', 'c.classe_id')
-              ->select('c.*', 'cl.nom as classe_nom');
-        } else {
-            $q->select('c.*');
-        }
-
-        $cours = $q->get();
-
-        return view('cours.index', [
-            'matiereRow' => $matiereRow,
-            'cours' => $cours,
-            'classes' => $classes,
-            'classeFilter' => $classeFilter,
-            'error' => null,
-        ]);
-    }
-
-    /**
-     * /matieres/{matiere}/cours/create
-     */
-    public function create(Request $request, $matiere)
+    public function index($matiere)
     {
         abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
-        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante. Lance les migrations.");
+        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante.");
 
         $matiereId = (int)$matiere;
         $matiereRow = DB::table('matieres')->where('id', $matiereId)->first();
         abort_if(!$matiereRow, 404);
 
-        $classes = Schema::hasTable('classes') ? DB::table('classes')->orderBy('nom')->get() : collect();
-        $classePrefill = (int)$request->query('classe', 0);
+        $cours = DB::table('cours')
+            ->where('matiere_id', $matiereId)
+            ->orderByDesc('id')
+            ->get();
 
-        return view('cours.create', compact('matiereRow', 'classes', 'classePrefill'));
+        return view('cours.index', compact('matiereRow', 'cours'));
     }
 
-    /**
-     * POST /matieres/{matiere}/cours
-     */
+    public function create($matiere)
+    {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
+        abort_if(!Schema::hasTable('classes'), 500, "Table 'classes' manquante.");
+
+        $matiereId = (int)$matiere;
+        $matiereRow = DB::table('matieres')->where('id', $matiereId)->first();
+        abort_if(!$matiereRow, 404);
+
+        $classes = DB::table('classes')->orderBy('nom')->get();
+
+        return view('cours.create', compact('matiereRow', 'classes'));
+    }
+
     public function store(Request $request, $matiere)
     {
-        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante. Lance les migrations.");
+        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante.");
 
         $matiereId = (int)$matiere;
 
         $request->validate([
-            'classe_id' => 'required|integer',
+            'classe_id' => 'required|integer|min:1',
             'titre'     => 'required|string|max:255',
             'contenu'   => 'nullable|string',
+            'actif'     => 'nullable',
         ]);
-
-        $classeId = (int)$request->classe_id;
-
-        if (Schema::hasTable('classes')) {
-            $classe = DB::table('classes')->where('id', $classeId)->first();
-            abort_if(!$classe, 404);
-        }
 
         $data = [
             'matiere_id' => $matiereId,
-            'classe_id'  => $classeId,
+            'classe_id'  => (int)$request->classe_id,
             'titre'      => trim((string)$request->titre),
-            'contenu'    => $request->contenu ?? '',
+            'contenu'    => (string)($request->contenu ?? ''),
+            'actif'      => $request->has('actif') ? 1 : 0,
         ];
-
-        // actif (si colonne existe)
-        if (Schema::hasColumn('cours', 'actif')) {
-            $data['actif'] = $request->has('actif') ? 1 : 0;
-        }
 
         if (Schema::hasColumn('cours', 'created_at')) $data['created_at'] = now();
         if (Schema::hasColumn('cours', 'updated_at')) $data['updated_at'] = now();
@@ -121,12 +68,10 @@ class CoursController extends Controller
         return redirect()->route('cours.index', $matiereId)->with('success', 'Cours créé.');
     }
 
-    /**
-     * /cours/{cours}/edit
-     */
     public function edit($cours)
     {
-        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante. Lance les migrations.");
+        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante.");
+        abort_if(!Schema::hasTable('classes'), 500, "Table 'classes' manquante.");
 
         $coursId = (int)$cours;
         $coursRow = DB::table('cours')->where('id', $coursId)->first();
@@ -136,65 +81,135 @@ class CoursController extends Controller
             ? DB::table('matieres')->where('id', (int)$coursRow->matiere_id)->first()
             : null;
 
-        $classes = Schema::hasTable('classes') ? DB::table('classes')->orderBy('nom')->get() : collect();
+        $classes = DB::table('classes')->orderBy('nom')->get();
 
         return view('cours.edit', compact('coursRow', 'matiereRow', 'classes'));
     }
 
-    /**
-     * PUT /cours/{cours}
-     */
     public function update(Request $request, $cours)
     {
-        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante. Lance les migrations.");
+        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante.");
 
         $coursId = (int)$cours;
-        $coursRow = DB::table('cours')->where('id', $coursId)->first();
-        abort_if(!$coursRow, 404);
 
         $request->validate([
-            'classe_id' => 'required|integer',
+            'classe_id' => 'required|integer|min:1',
             'titre'     => 'required|string|max:255',
             'contenu'   => 'nullable|string',
+            'actif'     => 'nullable',
         ]);
 
-        $classeId = (int)$request->classe_id;
-
-        if (Schema::hasTable('classes')) {
-            $classe = DB::table('classes')->where('id', $classeId)->first();
-            abort_if(!$classe, 404);
-        }
-
         $data = [
-            'classe_id' => $classeId,
+            'classe_id' => (int)$request->classe_id,
             'titre'     => trim((string)$request->titre),
-            'contenu'   => $request->contenu ?? '',
+            'contenu'   => (string)($request->contenu ?? ''),
+            'actif'     => $request->has('actif') ? 1 : 0,
         ];
-
-        if (Schema::hasColumn('cours', 'actif')) {
-            $data['actif'] = $request->has('actif') ? 1 : 0;
-        }
 
         if (Schema::hasColumn('cours', 'updated_at')) $data['updated_at'] = now();
 
         DB::table('cours')->where('id', $coursId)->update($data);
 
-        return redirect()->route('cours.index', (int)$coursRow->matiere_id)->with('success', 'Cours mis à jour.');
+        return back()->with('success', 'Cours mis à jour.');
     }
 
-    /**
-     * DELETE /cours/{cours}
-     */
     public function destroy($cours)
     {
-        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante. Lance les migrations.");
+        abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante.");
 
         $coursId = (int)$cours;
-        $coursRow = DB::table('cours')->where('id', $coursId)->first();
-        abort_if(!$coursRow, 404);
-
         DB::table('cours')->where('id', $coursId)->delete();
 
-        return redirect()->route('cours.index', (int)$coursRow->matiere_id)->with('success', 'Cours supprimé.');
+        return back()->with('success', 'Cours supprimé.');
+    }
+
+    // ======================================================
+    // ✅ IMPORT COURS (Word/PDF → préremplit create)
+    // ======================================================
+    public function importForm($matiere)
+    {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
+
+        $matiereId = (int)$matiere;
+        $matiereRow = DB::table('matieres')->where('id', $matiereId)->first();
+        abort_if(!$matiereRow, 404);
+
+        return view('cours.import', compact('matiereRow'));
+    }
+
+    public function importStore(Request $request, $matiere)
+    {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
+
+        $matiereId = (int)$matiere;
+
+        $request->validate([
+            'fichier' => 'required|file|max:15360|mimes:docx,pdf',
+        ]);
+
+        $file = $request->file('fichier');
+        $ext  = strtolower($file->getClientOriginalExtension());
+        $path = $file->getRealPath();
+
+        $text = $this->extractTextFromFile($path, $ext);
+
+        if (trim($text) === '') {
+            return redirect()->route('cours.import', $matiereId)
+                ->with('error', $ext === 'pdf'
+                    ? "Impossible de lire le PDF. Installe : composer require smalot/pdfparser (ou utilise DOCX)."
+                    : "Impossible de lire le fichier Word. (DOCX uniquement)");
+        }
+
+        $title = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+        // ✅ Redirige vers create avec contenu déjà rempli (si ta vue utilise old())
+        return redirect()
+            ->route('cours.create', $matiereId)
+            ->withInput([
+                'titre'   => $title,
+                'contenu' => $text,
+                'actif'   => 1,
+            ])
+            ->with('success', 'Fichier importé : contenu pré-rempli.');
+    }
+
+    private function extractTextFromFile(string $path, string $ext): string
+    {
+        if ($ext === 'docx') return $this->extractTextFromDocx($path);
+        if ($ext === 'pdf')  return $this->extractTextFromPdf($path);
+        return '';
+    }
+
+    private function extractTextFromDocx(string $path): string
+    {
+        if (!class_exists(\ZipArchive::class)) return '';
+
+        $zip = new \ZipArchive();
+        $ok = $zip->open($path);
+        if ($ok !== true) return '';
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        if ($xml === false) return '';
+
+        $xml = str_replace(['</w:p>', '</w:tr>'], ["\n", "\n"], $xml);
+
+        $text = strip_tags($xml);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+        return (string)$text;
+    }
+
+    private function extractTextFromPdf(string $path): string
+    {
+        if (!class_exists(\Smalot\PdfParser\Parser::class)) return '';
+
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($path);
+            return (string)$pdf->getText();
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 }

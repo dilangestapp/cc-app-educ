@@ -8,52 +8,16 @@ use Illuminate\Support\Facades\Schema;
 
 class MatiereController extends Controller
 {
-    /**
-     * /matieres
-     * Gestion globale (anti-500 : si table absente -> message clair)
-     * + compteurs classes/cours si tables présentes
-     */
     public function manage()
     {
         if (!Schema::hasTable('matieres')) {
             return view('matieres.manage', [
                 'matieres' => collect(),
-                'error' => "La table 'matieres' n'existe pas encore en base. Lance les migrations en production (Railway) : php artisan migrate --force",
+                'error' => "La table 'matieres' n'existe pas encore en base. Lance les migrations : php artisan migrate --force",
             ]);
         }
 
-        $hasPivot = Schema::hasTable('classe_matiere');
-        $hasCours = Schema::hasTable('cours');
-
-        // Base query
-        $query = DB::table('matieres as m')
-            ->select('m.id', 'm.nom');
-
-        $needGroupBy = false;
-
-        // classes_count
-        if ($hasPivot) {
-            $query->leftJoin('classe_matiere as cm', 'm.id', '=', 'cm.matiere_id');
-            $query->addSelect(DB::raw('COUNT(DISTINCT cm.classe_id) as classes_count'));
-            $needGroupBy = true;
-        } else {
-            $query->addSelect(DB::raw('0 as classes_count'));
-        }
-
-        // cours_count
-        if ($hasCours) {
-            $query->leftJoin('cours as c', 'm.id', '=', 'c.matiere_id');
-            $query->addSelect(DB::raw('COUNT(DISTINCT c.id) as cours_count'));
-            $needGroupBy = true;
-        } else {
-            $query->addSelect(DB::raw('0 as cours_count'));
-        }
-
-        if ($needGroupBy) {
-            $query->groupBy('m.id', 'm.nom');
-        }
-
-        $matieres = $query->orderBy('m.nom')->get();
+        $matieres = DB::table('matieres')->orderBy('nom')->get();
 
         return view('matieres.manage', [
             'matieres' => $matieres,
@@ -61,9 +25,6 @@ class MatiereController extends Controller
         ]);
     }
 
-    /**
-     * /classes/{classe}/matieres
-     */
     public function indexByClasse($classe)
     {
         $classeId = (int) $classe;
@@ -75,38 +36,20 @@ class MatiereController extends Controller
         $classeRow = DB::table('classes')->where('id', $classeId)->first();
         abort_if(!$classeRow, 404);
 
-        // Si pivot absent, on ne plante pas : on montre vide
         if (!Schema::hasTable('classe_matiere') || !Schema::hasTable('matieres')) {
             return view('matieres.classe', [
                 'classeRow' => $classeRow,
                 'matieres'  => collect(),
-                'error'     => "Tables manquantes (matieres / classe_matiere). Lance les migrations en production.",
+                'error'     => "Tables manquantes (matieres / classe_matiere). Lance les migrations.",
             ]);
         }
 
-        $hasCours = Schema::hasTable('cours');
-
-        if ($hasCours) {
-            // Avec compteur de cours pour cette classe
-            $matieres = DB::table('matieres as m')
-                ->join('classe_matiere as cm', 'm.id', '=', 'cm.matiere_id')
-                ->leftJoin('cours as c', function ($join) use ($classeId) {
-                    $join->on('m.id', '=', 'c.matiere_id')
-                         ->where('c.classe_id', '=', $classeId);
-                })
-                ->where('cm.classe_id', $classeId)
-                ->selectRaw('m.id, m.nom, COUNT(DISTINCT c.id) as cours_count')
-                ->groupBy('m.id', 'm.nom')
-                ->orderBy('m.nom')
-                ->get();
-        } else {
-            $matieres = DB::table('matieres as m')
-                ->join('classe_matiere as cm', 'm.id', '=', 'cm.matiere_id')
-                ->where('cm.classe_id', $classeId)
-                ->select('m.*')
-                ->orderBy('m.nom')
-                ->get();
-        }
+        $matieres = DB::table('matieres')
+            ->join('classe_matiere', 'matieres.id', '=', 'classe_matiere.matiere_id')
+            ->where('classe_matiere.classe_id', $classeId)
+            ->select('matieres.*')
+            ->orderBy('matieres.nom')
+            ->get();
 
         return view('matieres.classe', [
             'classeRow' => $classeRow,
@@ -176,15 +119,9 @@ class MatiereController extends Controller
         $matiereId = (int)$matiere;
 
         DB::transaction(function () use ($matiereId) {
-            // supprime les cours liés (si table existe)
-            if (Schema::hasTable('cours')) {
-                DB::table('cours')->where('matiere_id', $matiereId)->delete();
-            }
-
             if (Schema::hasTable('classe_matiere')) {
                 DB::table('classe_matiere')->where('matiere_id', $matiereId)->delete();
             }
-
             if (Schema::hasTable('matieres')) {
                 DB::table('matieres')->where('id', $matiereId)->delete();
             }
@@ -250,6 +187,158 @@ class MatiereController extends Controller
         });
 
         return redirect()->route('matieres.manage')->with('success', 'Affectations mises à jour.');
+    }
+
+    // ======================================================
+    // ✅ IMPORT MATIERES (Word/PDF)
+    // ======================================================
+    public function importForm()
+    {
+        return view('matieres.import');
+    }
+
+    public function importStore(Request $request)
+    {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante. Lance les migrations.");
+
+        $request->validate([
+            'fichier' => 'required|file|max:15360|mimes:docx,pdf',
+        ]);
+
+        $file = $request->file('fichier');
+        $ext  = strtolower($file->getClientOriginalExtension());
+        $path = $file->getRealPath();
+
+        $text = $this->extractTextFromFile($path, $ext);
+        $names = $this->parseMatieresFromText($text);
+
+        if (!count($names)) {
+            return redirect()->route('matieres.import')
+                ->with('error', "Aucune matière détectée dans le fichier. Mets une matière par ligne (ou liste à puces).");
+        }
+
+        $hasCreated = Schema::hasColumn('matieres', 'created_at');
+        $hasUpdated = Schema::hasColumn('matieres', 'updated_at');
+
+        $added = 0;
+        $updated = 0;
+
+        DB::transaction(function () use ($names, $hasCreated, $hasUpdated, &$added, &$updated) {
+            foreach ($names as $nom) {
+                $exists = DB::table('matieres')->where('nom', $nom)->exists();
+
+                $data = ['nom' => $nom];
+
+                // Compat legacy
+                if (Schema::hasColumn('matieres', 'classe_id')) {
+                    $data['classe_id'] = $this->isNullableColumn('matieres', 'classe_id') ? null : 0;
+                }
+
+                if ($hasUpdated) $data['updated_at'] = now();
+
+                if ($exists) {
+                    DB::table('matieres')->where('nom', $nom)->update($data);
+                    $updated++;
+                } else {
+                    if ($hasCreated) $data['created_at'] = now();
+                    DB::table('matieres')->insert($data);
+                    $added++;
+                }
+            }
+        });
+
+        return redirect()->route('matieres.manage')
+            ->with('success', "Import terminé : {$added} ajoutée(s), {$updated} déjà existante(s) (mise à jour).");
+    }
+
+    private function extractTextFromFile(string $path, string $ext): string
+    {
+        if ($ext === 'docx') {
+            return $this->extractTextFromDocx($path);
+        }
+
+        if ($ext === 'pdf') {
+            return $this->extractTextFromPdf($path);
+        }
+
+        return '';
+    }
+
+    private function extractTextFromDocx(string $path): string
+    {
+        if (!class_exists(\ZipArchive::class)) {
+            throw new \RuntimeException("ZipArchive non disponible sur ce serveur (impossible de lire DOCX).");
+        }
+
+        $zip = new \ZipArchive();
+        $ok = $zip->open($path);
+
+        if ($ok !== true) return '';
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        if ($xml === false) return '';
+
+        // Ajouter des retours ligne sur fins de paragraphes
+        $xml = str_replace(['</w:p>', '</w:tr>', '</w:tab>'], ["\n", "\n", "\t"], $xml);
+
+        $text = strip_tags($xml);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+        return (string)$text;
+    }
+
+    private function extractTextFromPdf(string $path): string
+    {
+        if (!class_exists(\Smalot\PdfParser\Parser::class)) {
+            // PDF optionnel : on donne message clair
+            return '';
+        }
+
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($path);
+            return (string)$pdf->getText();
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    private function parseMatieresFromText(string $text): array
+    {
+        $text = trim((string)$text);
+        if ($text === '') return [];
+
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+
+        // Convertir puces en lignes
+        $text = preg_replace("/[•·●▪]+/u", "\n", $text);
+
+        $lines = preg_split("/\n+/u", $text);
+        $out = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+
+            // enlever numérotation: "1.", "1)", "01 -", "-"
+            $line = preg_replace('/^\s*(\d{1,3}\s*[\.\)\-:])\s*/u', '', $line);
+            $line = preg_replace('/^\s*[-–—]\s*/u', '', $line);
+
+            $line = trim($line, " \t\n\r\0\x0B-–—•.,;:|");
+            $line = preg_replace('/\s{2,}/u', ' ', $line);
+
+            if (mb_strlen($line, 'UTF-8') < 2) continue;
+
+            // Normaliser: "mathematique" => "Mathematique"
+            $line = mb_convert_case($line, MB_CASE_TITLE, 'UTF-8');
+
+            $out[] = $line;
+        }
+
+        $out = array_values(array_unique($out));
+        return $out;
     }
 
     private function isNullableColumn(string $table, string $column): bool
