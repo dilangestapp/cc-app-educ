@@ -56,7 +56,7 @@
                                     <span class="mx-1">/</span>
                                     <span class="text-white font-semibold">Cours</span>
                                 </div>
-                                <div class="mt-1 flex items-center gap-3">
+                                <div class="mt-1 flex items-center gap-3 flex-wrap">
                                     <h1 class="text-xl sm:text-2xl font-bold text-white">Cours — {{ $matiereRow->nom }}</h1>
                                     <span class="chip">{{ $count }} cours</span>
                                 </div>
@@ -74,8 +74,8 @@
                         <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <input id="coursSearch" class="glass-input w-full rounded-xl px-4 py-2 text-sm" placeholder="Rechercher un cours...">
 
-                            <form method="GET" class="flex items-center gap-2">
-                                <select name="classe" class="glass-input rounded-xl px-3 py-2 text-sm">
+                            <form method="GET" class="flex items-center gap-2 flex-wrap">
+                                <select name="classe" class="glass-input rounded-xl px-3 py-2 text-sm w-full sm:w-auto">
                                     <option value="0">Toutes les classes</option>
                                     @foreach(($classes ?? collect()) as $cl)
                                         <option value="{{ $cl->id }}" {{ (int)($classeFilter ?? 0) === (int)$cl->id ? 'selected' : '' }}>
@@ -83,7 +83,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <button class="btn btn-ghost" type="submit">Filtrer</button>
+                                <button class="btn btn-ghost w-full sm:w-auto" type="submit">Filtrer</button>
                             </form>
                         </div>
                     </div>
@@ -99,77 +99,129 @@
                                 </div>
                             </div>
                         @else
-                            <div class="overflow-x-auto rounded-xl border border-white/10">
-                                <table class="min-w-full">
-                                    <thead class="bg-white/5">
-                                        <tr class="text-left text-xs uppercase tracking-wider text-white/55">
-                                            <th class="py-3 px-4">Titre</th>
-                                            <th class="py-3 px-4">Classe</th>
-                                            <th class="py-3 px-4">Statut</th>
-                                            <th class="py-3 px-4 text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="coursBody" class="divide-y divide-white/10">
-                                        @foreach($cours as $c)
-                                            <tr class="hover:bg-white/5 transition" data-name="{{ strtolower($c->titre ?? '') }}">
-                                                <td class="py-4 px-4">
-                                                    <div class="font-semibold text-white">{{ $c->titre }}</div>
-                                                    <div class="text-[11px] text-white/55">ID: {{ $c->id }}</div>
-                                                </td>
-                                                <td class="py-4 px-4">
-                                                    <span class="chip">{{ $c->classe_nom ?? ('Classe #' . $c->classe_id) }}</span>
-                                                </td>
-                                                <td class="py-4 px-4">
-                                                    @php $actif = (int)($c->actif ?? 1); @endphp
-                                                    <span class="chip {{ $actif ? 'tag-on' : 'tag-off' }}">
-                                                        {{ $actif ? 'Actif' : 'Inactif' }}
-                                                    </span>
-                                                </td>
-                                                <td class="py-4 px-4">
-                                                    <div class="flex items-center justify-end gap-2 flex-wrap">
-                                                        <a href="{{ route('cours.edit', $c->id) }}" class="btn btn-ghost">Modifier</a>
-                                                        <form method="POST" action="{{ route('cours.destroy', $c->id) }}"
-                                                              onsubmit="return confirm('Supprimer le cours : {{ addslashes($c->titre) }} ?');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-danger">Supprimer</button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
 
-                                <div id="coursEmpty" class="hidden text-center py-8">
-                                    <div class="text-white font-semibold">Aucun résultat</div>
-                                    <div class="text-sm text-white/70 mt-1">Essaie un autre mot-clé.</div>
+                            {{-- ✅ MOBILE: cartes (tout visible) --}}
+                            <div id="coursCards" class="sm:hidden space-y-3">
+                                @foreach($cours as $c)
+                                    @php $actif = (int)($c->actif ?? 1); @endphp
+                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4" data-name="{{ strtolower($c->titre ?? '') }}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <div class="font-semibold text-white text-base break-words">{{ $c->titre }}</div>
+                                                <div class="mt-1 text-xs text-white/55">
+                                                    Classe : <span class="text-white/85">{{ $c->classe_nom ?? ('Classe #' . $c->classe_id) }}</span>
+                                                    <span class="mx-2">•</span>
+                                                    ID : {{ $c->id }}
+                                                </div>
+                                            </div>
+
+                                            <span class="chip {{ $actif ? 'tag-on' : 'tag-off' }}">
+                                                {{ $actif ? 'Actif' : 'Inactif' }}
+                                            </span>
+                                        </div>
+
+                                        <div class="mt-3 flex flex-col gap-2">
+                                            <a href="{{ route('cours.edit', $c->id) }}" class="btn btn-ghost w-full">Modifier</a>
+
+                                            <form method="POST" action="{{ route('cours.destroy', $c->id) }}"
+                                                  onsubmit="return confirm('Supprimer le cours : {{ addslashes($c->titre) }} ?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-danger w-full">Supprimer</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            {{-- ✅ DESKTOP: table --}}
+                            <div id="coursTableWrap" class="hidden sm:block">
+                                <div class="overflow-x-auto rounded-xl border border-white/10">
+                                    <table class="min-w-[760px] w-full">
+                                        <thead class="bg-white/5">
+                                            <tr class="text-left text-xs uppercase tracking-wider text-white/55">
+                                                <th class="py-3 px-4">Titre</th>
+                                                <th class="py-3 px-4">Classe</th>
+                                                <th class="py-3 px-4">Statut</th>
+                                                <th class="py-3 px-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="coursBody" class="divide-y divide-white/10">
+                                            @foreach($cours as $c)
+                                                @php $actif = (int)($c->actif ?? 1); @endphp
+                                                <tr class="hover:bg-white/5 transition" data-name="{{ strtolower($c->titre ?? '') }}">
+                                                    <td class="py-4 px-4">
+                                                        <div class="font-semibold text-white">{{ $c->titre }}</div>
+                                                        <div class="text-[11px] text-white/55">ID: {{ $c->id }}</div>
+                                                    </td>
+                                                    <td class="py-4 px-4">
+                                                        <span class="chip">{{ $c->classe_nom ?? ('Classe #' . $c->classe_id) }}</span>
+                                                    </td>
+                                                    <td class="py-4 px-4">
+                                                        <span class="chip {{ $actif ? 'tag-on' : 'tag-off' }}">
+                                                            {{ $actif ? 'Actif' : 'Inactif' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-4 px-4">
+                                                        <div class="flex items-center justify-end gap-2 flex-wrap">
+                                                            <a href="{{ route('cours.edit', $c->id) }}" class="btn btn-ghost">Modifier</a>
+                                                            <form method="POST" action="{{ route('cours.destroy', $c->id) }}"
+                                                                  onsubmit="return confirm('Supprimer le cours : {{ addslashes($c->titre) }} ?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-danger">Supprimer</button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
+                            </div>
+
+                            <div id="coursEmpty" class="hidden text-center py-8">
+                                <div class="text-white font-semibold">Aucun résultat</div>
+                                <div class="text-sm text-white/70 mt-1">Essaie un autre mot-clé.</div>
                             </div>
 
                             <script>
                                 (function () {
                                     const input = document.getElementById('coursSearch');
                                     const body = document.getElementById('coursBody');
+                                    const cards = document.getElementById('coursCards');
                                     const empty = document.getElementById('coursEmpty');
-                                    if (!input || !body) return;
 
-                                    function filter() {
-                                        const q = (input.value || '').trim().toLowerCase();
-                                        const rows = body.querySelectorAll('tr');
+                                    function filterNodes(nodes, q) {
                                         let visible = 0;
-
-                                        rows.forEach(row => {
-                                            const name = row.getAttribute('data-name') || '';
+                                        nodes.forEach(node => {
+                                            const name = (node.getAttribute('data-name') || '');
                                             const show = !q || name.includes(q);
-                                            row.style.display = show ? '' : 'none';
+                                            node.style.display = show ? '' : 'none';
                                             if (show) visible++;
                                         });
+                                        return visible;
+                                    }
+
+                                    function filterAll() {
+                                        const q = (input && input.value ? input.value : '').trim().toLowerCase();
+
+                                        let visible = 0;
+
+                                        if (body) {
+                                            const rows = Array.from(body.querySelectorAll('tr'));
+                                            visible = Math.max(visible, filterNodes(rows, q));
+                                        }
+
+                                        if (cards) {
+                                            const cardItems = Array.from(cards.querySelectorAll('[data-name]'));
+                                            visible = Math.max(visible, filterNodes(cardItems, q));
+                                        }
 
                                         if (empty) empty.classList.toggle('hidden', visible !== 0);
                                     }
 
-                                    input.addEventListener('input', filter);
+                                    if (input) input.addEventListener('input', filterAll);
                                 })();
                             </script>
                         @endif
