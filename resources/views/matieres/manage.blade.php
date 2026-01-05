@@ -1,29 +1,16 @@
 <x-app-layout>
     <style>
-        /* Neutraliser le fond par défaut Breeze sur CETTE page */
+        /* Neutraliser le fond Breeze sur CETTE page */
         .min-h-screen.bg-gray-100 { background: transparent !important; }
 
-        /* Navbar Breeze => glass dark (pour se fondre dans l'image) */
-        nav.bg-white, header.bg-white {
-            background: rgba(8, 12, 16, .55) !important;
-            backdrop-filter: blur(12px) !important;
+        /* Navbar Breeze => glass dark (peu visible) */
+        header, nav {
+            background: rgba(8, 12, 16, .45) !important;
+            backdrop-filter: blur(10px) !important;
             border-bottom: 1px solid rgba(255,255,255,.10) !important;
         }
-
-        /* Couleurs du texte dans la navbar (sinon illisible) */
-        nav a, nav button, nav span, nav div {
-            color: rgba(255,255,255,.88) !important;
-        }
-        nav a:hover, nav button:hover {
-            color: #fff !important;
-        }
-
-        /* Dropdown menu (si Breeze met du blanc) */
-        .dropdown-content, [role="menu"] {
-            background: rgba(12, 16, 20, .92) !important;
-            border: 1px solid rgba(255,255,255,.10) !important;
-            backdrop-filter: blur(10px) !important;
-        }
+        nav a, nav button, nav span, nav div { color: rgba(255,255,255,.88) !important; }
+        nav a:hover, nav button:hover { color: #fff !important; }
 
         .glass-card {
             background: rgba(255,255,255,.06);
@@ -41,47 +28,65 @@
             box-shadow: 0 0 0 3px rgba(99,102,241,.28);
             border-color: rgba(99,102,241,.55);
         }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            padding: .55rem 1rem;
+            border-radius: 0.9rem;
+            font-size: .875rem;
+            font-weight: 600;
+            transition: .15s ease-in-out;
+            white-space: nowrap;
+        }
+        .btn-ghost { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.10); color: #fff; }
+        .btn-ghost:hover { background: rgba(255,255,255,.16); }
+
+        .btn-primary { background: rgb(79 70 229); color: #fff; }
+        .btn-primary:hover { background: rgb(67 56 202); }
+
+        .btn-blue { background: rgb(37 99 235); color: #fff; }
+        .btn-blue:hover { background: rgb(29 78 216); }
+
+        .btn-danger { background: rgb(220 38 38); color: #fff; }
+        .btn-danger:hover { background: rgb(185 28 28); }
+
+        .tag {
+            display:inline-flex;
+            align-items:center;
+            padding:.25rem .6rem;
+            border-radius:9999px;
+            font-size:.75rem;
+            border:1px solid rgba(34,197,94,.25);
+            background: rgba(34,197,94,.10);
+            color: rgba(187,247,208,.95);
+        }
+
+        /* Petit badge vertical décoratif (style magazine) */
+        .vertical-label {
+            position: absolute;
+            right: 18px;
+            top: 18px;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            letter-spacing: .25em;
+            font-weight: 800;
+            font-size: .75rem;
+            color: rgba(255, 182, 193, .55);
+            user-select: none;
+            pointer-events: none;
+        }
     </style>
 
-    {{-- Background --}}
     <div class="min-h-screen"
          style="background-image:url('{{ asset('images/matieres-bg.png') }}');background-size:cover;background-position:center;background-repeat:no-repeat;">
-        {{-- Overlay lisible --}}
         <div class="min-h-screen bg-black/60">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-                {{-- Header interne pro --}}
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <div class="text-xs text-white/60">
-                            <a href="{{ route('dashboard') }}" class="hover:text-white">Dashboard</a>
-                            <span class="mx-1">/</span>
-                            <span class="text-white font-semibold">Matières</span>
-                        </div>
-                        <h1 class="mt-1 text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                            Gestion des matières
-                        </h1>
-                        <p class="mt-1 text-sm text-white/70">
-                            Crée, organise et affecte les matières aux classes.
-                        </p>
-                    </div>
-
-                    {{-- Actions top --}}
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <a href="{{ route('dashboard') }}"
-                           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/15 transition">
-                            <span>←</span> Retour
-                        </a>
-
-                        <a href="{{ route('matieres.create') }}"
-                           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
-                            <span class="text-lg leading-none">＋</span> Nouvelle matière
-                        </a>
-                    </div>
-                </div>
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
                 {{-- Alerts --}}
-                <div class="mt-4 space-y-2">
+                <div class="space-y-2 mb-4">
                     @if (!empty($error))
                         <div class="rounded-xl border border-yellow-400/30 bg-yellow-300/10 px-4 py-3 text-yellow-100">
                             {{ $error }}
@@ -97,22 +102,42 @@
 
                 @php $count = $matieres ? count($matieres) : 0; @endphp
 
-                {{-- Card principale --}}
-                <div class="mt-5 glass-card rounded-2xl overflow-hidden shadow-lg">
+                {{-- Carte principale (tout est dedans => plus pro) --}}
+                <div class="glass-card rounded-2xl overflow-hidden shadow-lg relative">
+                    <div class="vertical-label">MATIÈRES</div>
 
-                    {{-- Toolbar --}}
+                    {{-- Toolbar compacte --}}
                     <div class="p-4 sm:p-5 border-b border-white/10">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="text-sm text-white/75">
-                                <span class="font-semibold text-white">{{ $count }}</span> matière(s)
+                            <div>
+                                <div class="text-xs text-white/60">
+                                    <a href="{{ route('dashboard') }}" class="hover:text-white">Dashboard</a>
+                                    <span class="mx-1">/</span>
+                                    <span class="text-white font-semibold">Matières</span>
+                                </div>
+                                <div class="mt-1 flex items-center gap-3">
+                                    <h1 class="text-xl sm:text-2xl font-bold text-white">Gestion des matières</h1>
+                                    <span class="text-xs px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-white/80">
+                                        {{ $count }} matière(s)
+                                    </span>
+                                </div>
+                                <p class="mt-1 text-sm text-white/70">
+                                    Crée, organise et affecte les matières aux classes.
+                                </p>
                             </div>
 
-                            <div class="w-full sm:w-96">
-                                <input id="matiereSearch"
-                                       type="text"
-                                       placeholder="Rechercher une matière..."
-                                       class="glass-input w-full rounded-xl px-4 py-2 text-sm">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <a href="{{ route('dashboard') }}" class="btn btn-ghost">← Retour</a>
+                                <a href="{{ route('matieres.create') }}" class="btn btn-primary">＋ Nouvelle matière</a>
                             </div>
+                        </div>
+
+                        {{-- Recherche --}}
+                        <div class="mt-4">
+                            <input id="matiereSearch"
+                                   type="text"
+                                   placeholder="Rechercher une matière..."
+                                   class="glass-input w-full rounded-xl px-4 py-2 text-sm">
                         </div>
                     </div>
 
@@ -126,10 +151,7 @@
                                 <h3 class="mt-4 text-lg font-semibold text-white">Aucune matière</h3>
                                 <p class="mt-1 text-sm text-white/70">Crée ta première matière pour commencer.</p>
                                 <div class="mt-5">
-                                    <a href="{{ route('matieres.create') }}"
-                                       class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition">
-                                        ＋ Nouvelle matière
-                                    </a>
+                                    <a href="{{ route('matieres.create') }}" class="btn btn-primary">＋ Nouvelle matière</a>
                                 </div>
                             </div>
                         @else
@@ -146,10 +168,9 @@
                                     <tbody id="matiereTableBody" class="divide-y divide-white/10">
                                         @foreach ($matieres as $m)
                                             <tr class="hover:bg-white/5 transition" data-name="{{ strtolower($m->nom) }}">
-                                                {{-- Matière --}}
                                                 <td class="py-4 px-4">
                                                     <div class="flex items-center gap-3">
-                                                        <div class="h-10 w-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-white font-semibold">
+                                                        <div class="h-10 w-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-white font-bold">
                                                             {{ strtoupper(substr($m->nom, 0, 1)) }}
                                                         </div>
                                                         <div class="leading-tight">
@@ -159,23 +180,17 @@
                                                     </div>
                                                 </td>
 
-                                                {{-- Statut --}}
                                                 <td class="py-4 px-4">
-                                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs bg-green-300/10 text-green-200 border border-green-300/20">
-                                                        Active
-                                                    </span>
+                                                    <span class="tag">Active</span>
                                                 </td>
 
-                                                {{-- Actions --}}
                                                 <td class="py-4 px-4">
                                                     <div class="flex items-center justify-end gap-2 flex-wrap">
-                                                        <a href="{{ route('matieres.affecter', $m->id) }}"
-                                                           class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition text-sm">
+                                                        <a href="{{ route('matieres.affecter', $m->id) }}" class="btn btn-blue">
                                                             Affecter
                                                         </a>
 
-                                                        <a href="{{ route('matieres.edit', $m->id) }}"
-                                                           class="px-4 py-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/15 transition text-sm">
+                                                        <a href="{{ route('matieres.edit', $m->id) }}" class="btn btn-ghost">
                                                             Modifier
                                                         </a>
 
@@ -183,8 +198,7 @@
                                                               onsubmit="return confirm('Supprimer la matière : {{ addslashes($m->nom) }} ?');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit"
-                                                                    class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition text-sm">
+                                                            <button type="submit" class="btn btn-danger">
                                                                 Supprimer
                                                             </button>
                                                         </form>
@@ -201,7 +215,6 @@
                                 </div>
                             </div>
 
-                            {{-- Search offline --}}
                             <script>
                                 (function () {
                                     const input = document.getElementById('matiereSearch');
