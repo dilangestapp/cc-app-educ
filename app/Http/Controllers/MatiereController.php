@@ -17,7 +17,34 @@ class MatiereController extends Controller
             ]);
         }
 
-        $matieres = DB::table('matieres')->orderBy('nom')->get();
+        $hasClasseMatiere = Schema::hasTable('classe_matiere');
+        $hasCours         = Schema::hasTable('cours');
+
+        $q = DB::table('matieres as m')->select('m.*');
+
+        // ✅ Compteur de classes affectées (pivot classe_matiere)
+        if ($hasClasseMatiere) {
+            $q->selectSub(function ($sub) {
+                $sub->from('classe_matiere as cm')
+                    ->selectRaw('COUNT(DISTINCT cm.classe_id)')
+                    ->whereColumn('cm.matiere_id', 'm.id');
+            }, 'classes_count');
+        } else {
+            $q->selectRaw('0 as classes_count');
+        }
+
+        // ✅ Compteur de cours (table cours)
+        if ($hasCours) {
+            $q->selectSub(function ($sub) {
+                $sub->from('cours as c')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('c.matiere_id', 'm.id');
+            }, 'cours_count');
+        } else {
+            $q->selectRaw('0 as cours_count');
+        }
+
+        $matieres = $q->orderBy('m.nom')->get();
 
         return view('matieres.manage', [
             'matieres' => $matieres,
