@@ -12,6 +12,20 @@
         nav a, nav button, nav span, nav div { color: rgba(255,255,255,.88) !important; }
         nav a:hover, nav button:hover { color: #fff !important; }
 
+        /* ==============================
+           ✅ FIX : supprimer les textes noirs/gris hérités
+           (Breeze met souvent text-gray-xxx)
+        ============================== */
+        body, main, .min-h-screen, .glass-card, table, th, td, p, h1, h2, h3, label, span, a, small, strong, em {
+            color: rgba(255,255,255,.90);
+        }
+        .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400 {
+            color: rgba(255,255,255,.85) !important;
+        }
+        thead th { color: rgba(255,255,255,.60) !important; }
+        tbody td { color: rgba(255,255,255,.88) !important; }
+
+        /* Cards / inputs */
         .glass-card {
             background: rgba(255,255,255,.06);
             border: 1px solid rgba(255,255,255,.10);
@@ -29,6 +43,7 @@
             border-color: rgba(99,102,241,.55);
         }
 
+        /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
@@ -53,6 +68,7 @@
         .btn-danger { background: rgb(220 38 38); color: #fff; }
         .btn-danger:hover { background: rgb(185 28 28); }
 
+        /* Tags */
         .tag {
             display:inline-flex;
             align-items:center;
@@ -61,7 +77,7 @@
             font-size:.75rem;
             border:1px solid rgba(34,197,94,.25);
             background: rgba(34,197,94,.10);
-            color: rgba(187,247,208,.95);
+            color: rgba(187,247,208,.95) !important;
         }
 
         /* Petit badge vertical décoratif (style magazine) */
@@ -74,7 +90,7 @@
             letter-spacing: .25em;
             font-weight: 800;
             font-size: .75rem;
-            color: rgba(255, 182, 193, .55);
+            color: rgba(255, 182, 193, .55) !important;
             user-select: none;
             pointer-events: none;
         }
@@ -102,7 +118,7 @@
 
                 @php $count = $matieres ? count($matieres) : 0; @endphp
 
-                {{-- Carte principale (tout est dedans => plus pro) --}}
+                {{-- Carte principale --}}
                 <div class="glass-card rounded-2xl overflow-hidden shadow-lg relative">
                     <div class="vertical-label">MATIÈRES</div>
 
