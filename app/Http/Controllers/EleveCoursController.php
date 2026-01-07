@@ -59,12 +59,43 @@ class EleveCoursController extends Controller
     private function emptyPaginator(Request $request): LengthAwarePaginator
     {
         return new LengthAwarePaginator(
-            items: [],
-            total: 0,
-            perPage: 10,
-            currentPage: 1,
-            options: ['path' => $request->url(), 'query' => $request->query()]
+            [],
+            0,
+            10,
+            1,
+            ['path' => $request->url(), 'query' => $request->query()]
         );
+    }
+
+    /**
+     * ✅ Filtre recherche SAFE (évite where() vide / OR mal placé)
+     */
+    private function applySearchFilter($query, string $q, ?string $coursTable, ?string $titleCol, bool $canJoinMatiere, ?string $matieresTable, ?string $matiereLabelCol): void
+    {
+        if ($q === '') return;
+
+        $hasTitle = !empty($titleCol);
+        $hasMatiere = $canJoinMatiere && !empty($matieresTable) && !empty($matiereLabelCol);
+
+        // Si rien à filtrer, on ne touche pas à la requête (évite SQL invalide)
+        if (!$hasTitle && !$hasMatiere) return;
+
+        $query->where(function ($qq) use ($q, $coursTable, $titleCol, $hasTitle, $hasMatiere, $matieresTable, $matiereLabelCol) {
+            $first = true;
+
+            if ($hasTitle) {
+                $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+                $first = false;
+            }
+
+            if ($hasMatiere) {
+                if ($first) {
+                    $qq->where($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
+                } else {
+                    $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
+                }
+            }
+        });
     }
 
     public function index(Request $request)
@@ -113,24 +144,14 @@ class EleveCoursController extends Controller
                 Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
             ];
 
-            if ($canJoinMatiere) {
-                $select[] = DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere');
-            } else {
-                $select[] = DB::raw("NULL as matiere");
-            }
+            $select[] = $canJoinMatiere
+                ? DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere')
+                : DB::raw("NULL as matiere");
 
             $query->select($select)->orderByDesc($coursTable . '.id');
 
-            if ($q !== '') {
-                $query->where(function ($qq) use ($q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol) {
-                    if ($titleCol) {
-                        $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
-                    }
-                    if ($canJoinMatiere) {
-                        $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
-                    }
-                });
-            }
+            // ✅ Search SAFE
+            $this->applySearchFilter($query, $q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol);
 
             $items = $query->paginate(10)->withQueryString();
 
@@ -185,24 +206,14 @@ class EleveCoursController extends Controller
             Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
         ];
 
-        if ($canJoinMatiere) {
-            $select[] = DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere');
-        } else {
-            $select[] = DB::raw("NULL as matiere");
-        }
+        $select[] = $canJoinMatiere
+            ? DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere')
+            : DB::raw("NULL as matiere");
 
         $query->select($select)->orderByDesc($coursTable . '.id');
 
-        if ($q !== '') {
-            $query->where(function ($qq) use ($q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol) {
-                if ($titleCol) {
-                    $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
-                }
-                if ($canJoinMatiere) {
-                    $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
-                }
-            });
-        }
+        // ✅ Search SAFE
+        $this->applySearchFilter($query, $q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol);
 
         $items = $query->paginate(10)->withQueryString();
 
@@ -224,17 +235,19 @@ class EleveCoursController extends Controller
         $coursTable = $this->coursTable();
         if (!Schema::hasTable($coursTable)) abort(404);
 
-        // (inchangé) — autorisations
+        // ✅ autorisations via cours_classes (si utilisé)
         if (Schema::hasTable('cours_classes')) {
             $ok = DB::table('cours_classes')
                 ->where('cours_id', (int)$id)
                 ->where('classe_id', (int)$user->classe_id)
                 ->exists();
+
             if ($ok) {
                 return $this->renderCourse($coursTable, (int)$id);
             }
         }
 
+        // ✅ autorisations via matières affectées
         $pivot = $this->classeMatierePivot();
         if (!$pivot || !Schema::hasColumn($coursTable, 'matiere_id')) abort(403);
 
