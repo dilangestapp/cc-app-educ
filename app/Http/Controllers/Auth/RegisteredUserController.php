@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,12 +25,12 @@ class RegisteredUserController extends Controller
         $request->validate([
             'pseudo' => ['required', 'string', 'max:60'],
             'type_compte' => ['required', 'string', 'in:eleve,enseignant,parent,admin'],
-            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $data = [
-            'name' => $request->pseudo, // on évite le nom réel
+            'name' => $request->pseudo,
             'password' => Hash::make($request->password),
         ];
 
@@ -39,11 +38,10 @@ class RegisteredUserController extends Controller
         if (!empty($request->email)) {
             $data['email'] = $request->email;
         } else {
-            // si ton users.email est NOT NULL, ça plantera. Dans ce cas, dis-moi et on adapte la migration.
             $data['email'] = 'pseudo_' . time() . '@local.test';
         }
 
-        // Ajouter pseudo/type_compte seulement si colonnes existantes
+        // écrire pseudo/type_compte si colonnes existantes (sécurise si DB pas encore migrée)
         if (Schema::hasColumn('users', 'pseudo')) {
             $data['pseudo'] = $request->pseudo;
         }
@@ -56,6 +54,7 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
         Auth::login($user);
 
-        return redirect(RouteServiceProvider::HOME);
+        // ✅ Redirect final selon rôle
+        return redirect()->route($user->homeRouteName());
     }
 }

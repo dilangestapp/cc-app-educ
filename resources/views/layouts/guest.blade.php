@@ -7,7 +7,7 @@
 
     <title>{{ config('app.name', 'CC-APP-EDUC') }}</title>
 
-    {{-- ✅ Base CSS TOUJOURS (même si Vite/Tailwind ne charge pas) --}}
+    {{-- ✅ Base CSS de secours, NE FORCE PAS le fond (ton login/register garde ses couleurs) --}}
     <style>
         :root { color-scheme: light; }
         * { box-sizing: border-box; }
@@ -15,10 +15,22 @@
         body {
             margin: 0;
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-            background: #eef2f7;
+            /* IMPORTANT: on ne force pas de background ici */
             color: #0f172a;
         }
         a { color: inherit; }
+        .logo-wrap{
+            width: 100%;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            margin: 18px 0 10px;
+        }
+        .logo-wrap img{
+            width: 92px;
+            height: auto;
+            display:block;
+        }
     </style>
 
     @php $hasViteManifest = file_exists(public_path('build/manifest.json')); @endphp
@@ -27,6 +39,10 @@
     @endif
 </head>
 <body>
+    <div class="logo-wrap">
+        <img src="{{ asset('images/logo.png') }}" alt="CC-APP-EDUC">
+    </div>
+
     {{ $slot }}
 </body>
 </html>
