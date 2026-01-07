@@ -1,22 +1,42 @@
 <?php
 
 use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Foundation\Configuration\Middleware;
+use App\Http\Middleware\EnsureRole;
 
-return Application::configure(basePath: dirname(__DIR__))
-    ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        commands: __DIR__.'/../routes/console.php',
-        health: '/up',
-    )
-    ->withMiddleware(function (Middleware $middleware) {
-        // ✅ Laravel 11: alias ici (pas Kernel.php)
-        $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureRole::class,
-        ]);
-    })
-    ->withExceptions(function (Exceptions $exceptions) {
-        //
-    })
-    ->create();
+$app = new Application(
+    $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
+);
+
+/*
+|--------------------------------------------------------------------------
+| Bind Important Interfaces
+|--------------------------------------------------------------------------
+*/
+
+$app->singleton(
+    Illuminate\Contracts\Http\Kernel::class,
+    App\Http\Kernel::class
+);
+
+$app->singleton(
+    Illuminate\Contracts\Console\Kernel::class,
+    App\Console\Kernel::class
+);
+
+$app->singleton(
+    Illuminate\Contracts\Debug\ExceptionHandler::class,
+    App\Exceptions\Handler::class
+);
+
+/*
+|--------------------------------------------------------------------------
+| ✅ Middleware alias (dans bootstrap, compatible Laravel 10)
+|--------------------------------------------------------------------------
+| On déclare l'alias 'role' ici, pour que tes routes puissent faire:
+| ->middleware('role:admin')
+*/
+$app->booted(function () use ($app) {
+    $app['router']->aliasMiddleware('role', EnsureRole::class);
+});
+
+return $app;
