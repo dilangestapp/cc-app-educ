@@ -184,6 +184,11 @@
             .title{ font-size:30px; }
         }
     </style>
+<div style="display:flex; justify-content:center; margin-bottom:12px;">
+    <img src="{{ asset('images/logo.png') }}"
+         alt="CC-APP-EDUC"
+         style="width:88px; height:88px; object-fit:contain; border-radius:18px; background:rgba(255,255,255,.06); padding:10px; border:1px solid rgba(255,255,255,.10);">
+</div>
 
     <div class="login-wrap">
         <div class="card">
