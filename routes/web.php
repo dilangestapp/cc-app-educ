@@ -47,8 +47,7 @@ Route::view('/parent', 'dashboards.parent')
 | ESPACE ELEVE (avec classe obligatoire + cours filtrés par classe)
 |--------------------------------------------------------------------------
 */
-use App\Http\Controllers\EleveCoursController;
-use App\Http\Controllers\EleveClasseController;
+
 
 Route::prefix('eleve')
     ->middleware(['auth', 'verified', 'role:eleve'])
