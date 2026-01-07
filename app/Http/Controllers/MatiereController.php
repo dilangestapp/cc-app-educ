@@ -9,48 +9,54 @@ use Illuminate\Support\Facades\Schema;
 class MatiereController extends Controller
 {
     public function manage()
-    {
-        if (!Schema::hasTable('matieres')) {
-            return view('matieres.manage', [
-                'matieres' => collect(),
-                'error' => "La table 'matieres' n'existe pas encore en base. Lance les migrations : php artisan migrate --force",
-            ]);
-        }
-
-        $hasClasseMatiere = Schema::hasTable('classe_matiere');
-        $hasCours         = Schema::hasTable('cours');
-
-        $q = DB::table('matieres as m')->select('m.*');
-
-        // ✅ Compteur de classes affectées (pivot classe_matiere)
-        if ($hasClasseMatiere) {
-            $q->selectSub(function ($sub) {
-                $sub->from('classe_matiere as cm')
-                    ->selectRaw('COUNT(DISTINCT cm.classe_id)')
-                    ->whereColumn('cm.matiere_id', 'm.id');
-            }, 'classes_count');
-        } else {
-            $q->selectRaw('0 as classes_count');
-        }
-
-        // ✅ Compteur de cours (table cours)
-        if ($hasCours) {
-            $q->selectSub(function ($sub) {
-                $sub->from('cours as c')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('c.matiere_id', 'm.id');
-            }, 'cours_count');
-        } else {
-            $q->selectRaw('0 as cours_count');
-        }
-
-        $matieres = $q->orderBy('m.nom')->get();
-
+{
+    if (!Schema::hasTable('matieres')) {
         return view('matieres.manage', [
-            'matieres' => $matieres,
-            'error' => null,
+            'matieres' => collect(),
+            'error' => "La table 'matieres' n'existe pas encore en base. Lance les migrations : php artisan migrate --force",
         ]);
     }
+
+    $hasClasseMatiere = Schema::hasTable('classe_matiere');
+    $hasCours = Schema::hasTable('cours');
+
+    // Base
+    $q = DB::table('matieres as m');
+
+    // Compteur classes affectées
+    if ($hasClasseMatiere) {
+        $q->leftJoin(DB::raw("
+            (select matiere_id, count(distinct classe_id) as classes_count
+             from classe_matiere
+             group by matiere_id
+            ) cm
+        "), 'cm.matiere_id', '=', 'm.id');
+    }
+
+    // Compteur cours
+    if ($hasCours) {
+        $q->leftJoin(DB::raw("
+            (select matiere_id, count(*) as cours_count
+             from cours
+             group by matiere_id
+            ) co
+        "), 'co.matiere_id', '=', 'm.id');
+    }
+
+    $matieres = $q->select([
+            'm.*',
+            DB::raw('COALESCE(cm.classes_count, 0) as classes_count'),
+            DB::raw('COALESCE(co.cours_count, 0) as cours_count'),
+        ])
+        ->orderBy('m.nom')
+        ->get();
+
+    return view('matieres.manage', [
+        'matieres' => $matieres,
+        'error' => null,
+    ]);
+}
+
 
     public function indexByClasse($classe)
     {
