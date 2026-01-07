@@ -6,6 +6,11 @@ use App\Http\Controllers\ClasseController;
 use App\Http\Controllers\MatiereController;
 use App\Http\Controllers\CoursController;
 
+// ✅ Nouveaux contrôleurs élève/admin (cours filtrés par classe + choix classe + affectation)
+use App\Http\Controllers\EleveCoursController;
+use App\Http\Controllers\EleveClasseController;
+use App\Http\Controllers\AdminCoursClassesController;
+
 Route::get('/', function () {
     return view('welcome');
 });
@@ -36,20 +41,25 @@ Route::view('/parent', 'dashboards.parent')
     ->middleware(['auth', 'verified', 'role:parent'])
     ->name('parent.dashboard');
 
+
 /*
 |--------------------------------------------------------------------------
-| ESPACE ELEVE — PAGES CLIQUABLES
-|--------------------------------------------------------------------------
-*/
-/*
-|--------------------------------------------------------------------------
-| ESPACE ELEVE — PAGES CLIQUABLES
+| ESPACE ELEVE (avec classe obligatoire + cours filtrés par classe)
 |--------------------------------------------------------------------------
 */
 Route::prefix('eleve')
     ->middleware(['auth', 'verified', 'role:eleve'])
     ->group(function () {
-        Route::view('/cours', 'eleves.cours')->name('eleve.cours');
+
+        // ✅ Choix classe (si eleve n'a pas encore sa classe)
+        Route::get('/classe', [EleveClasseController::class, 'edit'])->name('eleve.classe.edit');
+        Route::post('/classe', [EleveClasseController::class, 'update'])->name('eleve.classe.update');
+
+        // ✅ Cours élève (réels) : liste + lecture
+        Route::get('/cours', [EleveCoursController::class, 'index'])->name('eleve.cours');
+        Route::get('/cours/{id}', [EleveCoursController::class, 'show'])->name('eleve.cours.show');
+
+        // ✅ Les autres pages restent cliquables (placeholder)
         Route::view('/quiz', 'eleves.quiz')->name('eleve.quiz');
         Route::view('/questions', 'eleves.questions')->name('eleve.questions');
         Route::view('/groupes', 'eleves.groupes')->name('eleve.groupes');
@@ -74,6 +84,10 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin')->group(function () {
+
+        // ✅ Affecter un cours à des classes
+        Route::get('/cours/{id}/classes', [AdminCoursClassesController::class, 'edit'])->name('admin.cours.classes.edit');
+        Route::post('/cours/{id}/classes', [AdminCoursClassesController::class, 'update'])->name('admin.cours.classes.update');
 
         Route::get('/classes', [ClasseController::class, 'index'])->name('classes.index');
         Route::get('/classes/create', [ClasseController::class, 'create'])->name('classes.create');

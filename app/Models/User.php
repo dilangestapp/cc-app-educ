@@ -17,6 +17,7 @@ class User extends Authenticatable
         'password',
         'pseudo',
         'type_compte',
+        'classe_id',
     ];
 
     protected $hidden = [
@@ -32,6 +33,11 @@ class User extends Authenticatable
     public function homeRouteName(): string
     {
         $type = strtolower((string) ($this->type_compte ?? 'eleve'));
+
+        // ✅ élève sans classe => obligé choisir classe avant de continuer
+        if ($type === 'eleve' && empty($this->classe_id)) {
+            return 'eleve.classe.edit';
+        }
 
         return match ($type) {
             'admin' => 'dashboard',

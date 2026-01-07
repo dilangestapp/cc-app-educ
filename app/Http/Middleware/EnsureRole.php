@@ -8,13 +8,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureRole
 {
-    /**
-     * Usage:
-     *  ->middleware('role:admin')
-     *  ->middleware('role:eleve')
-     *  ->middleware('role:enseignant')
-     *  ->middleware('role:parent')
-     */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
         $user = $request->user();
@@ -27,15 +20,25 @@ class EnsureRole
         $roles = array_map(fn ($r) => strtolower(trim($r)), $roles);
 
         if (!in_array($type, $roles, true)) {
-            // 🚫 Pas le bon rôle => on redirige vers son dashboard
-            return redirect()->route($this->homeRouteName($type));
+            return redirect()->route($this->homeRouteName($user));
+        }
+
+        // ✅ élève sans classe => forcer choix classe
+        if ($type === 'eleve' && empty($user->classe_id) && !$request->routeIs('eleve.classe.*')) {
+            return redirect()->route('eleve.classe.edit');
         }
 
         return $next($request);
     }
 
-    private function homeRouteName(string $type): string
+    private function homeRouteName($user): string
     {
+        $type = strtolower((string) ($user->type_compte ?? 'eleve'));
+
+        if ($type === 'eleve' && empty($user->classe_id)) {
+            return 'eleve.classe.edit';
+        }
+
         return match ($type) {
             'admin' => 'dashboard',
             'enseignant' => 'enseignant.dashboard',
