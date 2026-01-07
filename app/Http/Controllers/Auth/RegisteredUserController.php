@@ -24,32 +24,34 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'pseudo'      => ['required','string','min:3','max:60','alpha_dash','unique:users,pseudo'],
-            'type_compte' => ['required','in:eleve,enseignant,admin,parent'],
-            'password'    => ['required','confirmed', Rules\Password::defaults()],
+            'pseudo' => ['required', 'string', 'max:60'],
+            'type_compte' => ['required', 'string', 'in:eleve,enseignant,parent,admin'],
+            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $pseudo = trim((string)$request->pseudo);
-        $type   = (string)$request->type_compte;
+        $data = [
+            'name' => $request->pseudo, // on évite le nom réel
+            'password' => Hash::make($request->password),
+        ];
 
-        // Email interne (pas saisi par l’utilisateur)
-        $email = strtolower($pseudo) . '@cc-app-educ.local';
-
-        $user = new User();
-        $user->forceFill([
-            'name'        => $pseudo,
-            'email'       => $email,
-            'password'    => Hash::make($request->password),
-            'pseudo'      => $pseudo,
-            'type_compte' => $type,
-        ]);
-
-        // ✅ pour passer middleware "verified"
-        if (Schema::hasColumn('users', 'email_verified_at')) {
-            $user->email_verified_at = now();
+        // email optionnel
+        if (!empty($request->email)) {
+            $data['email'] = $request->email;
+        } else {
+            // si ton users.email est NOT NULL, ça plantera. Dans ce cas, dis-moi et on adapte la migration.
+            $data['email'] = 'pseudo_' . time() . '@local.test';
         }
 
-        $user->save();
+        // Ajouter pseudo/type_compte seulement si colonnes existantes
+        if (Schema::hasColumn('users', 'pseudo')) {
+            $data['pseudo'] = $request->pseudo;
+        }
+        if (Schema::hasColumn('users', 'type_compte')) {
+            $data['type_compte'] = $request->type_compte;
+        }
+
+        $user = User::create($data);
 
         event(new Registered($user));
         Auth::login($user);
