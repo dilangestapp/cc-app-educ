@@ -10,11 +10,12 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// ✅ DASHBOARDS SÉPARÉS + SÉCURISÉS
-Route::view('/dashboard', 'dashboards.admin')
-    ->middleware(['auth', 'verified', 'role:admin'])
-    ->name('dashboard');
+// ✅ ADMIN ONLY (on remet ta vue dashboard existante)
+Route::get('/dashboard', function () {
+    return view('dashboard'); // <-- ton dashboard qui était déjà fonctionnel
+})->middleware(['auth', 'verified', 'role:admin'])->name('dashboard');
 
+// ✅ DASHBOARDS SÉPARÉS
 Route::view('/eleve', 'dashboards.eleve')
     ->middleware(['auth', 'verified', 'role:eleve'])
     ->name('eleve.dashboard');
@@ -29,12 +30,12 @@ Route::view('/parent', 'dashboards.parent')
 
 Route::middleware('auth')->group(function () {
 
-    // ✅ profil accessible à tous les connectés
+    // profil accessible à tous
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // ✅ Back-office (classes/matières/cours) => ADMIN ONLY
+    // ✅ Back-office => ADMIN ONLY
     Route::middleware('role:admin')->group(function () {
 
         Route::get('/classes', [ClasseController::class, 'index'])->name('classes.index');
