@@ -66,17 +66,54 @@
             pointer-events:none;
         }
 
+        /* Center column (logo + app name + card) */
+        .stack{
+            width:100%;
+            max-width:420px;
+            position:relative;
+            z-index:2;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:14px;
+        }
+
+        .brand-top{
+            text-align:center;
+        }
+        .brand-top img{
+            width:108px;
+            height:108px;
+            object-fit:contain;
+            border-radius:22px;
+            background:rgba(0,0,0,.28);
+            padding:10px;
+            border:1px solid rgba(242,210,122,.45);
+            box-shadow:0 14px 40px rgba(242,210,122,.10);
+            display:block;
+            margin:0 auto 10px;
+        }
+        .brand-top .appname{
+            color:var(--gold);
+            font-weight:1000;
+            letter-spacing:.14em;
+            font-size:18px;
+            margin:0;
+        }
+        .brand-top .tagline{
+            color:rgba(255,255,255,.72);
+            font-size:12px;
+            margin-top:2px;
+        }
+
         /* Card */
         .card{
             width:100%;
-            max-width:420px;
             background: rgba(59,59,59,.92);
             border: 1px solid rgba(255,255,255,.08);
             border-radius:26px;
             box-shadow: 0 30px 80px rgba(0,0,0,.65);
             padding:26px 22px 22px;
-            position:relative;
-            z-index:2;
             backdrop-filter: blur(6px);
         }
 
@@ -179,66 +216,72 @@
             font-size:13px;
         }
 
+        /* Breeze status text on dark bg */
+        .login-wrap .text-green-600{ color:#bbf7d0 !important; }
+        .login-wrap .text-gray-600{ color:rgba(255,255,255,.70) !important; }
+
         @media (max-width:420px){
             .row{ grid-template-columns: 100px 1fr; }
             .title{ font-size:30px; }
+            .brand-top img{ width:96px; height:96px; }
         }
     </style>
-<div style="display:flex; justify-content:center; margin-bottom:12px;">
-    <img src="{{ asset('images/logo.png') }}"
-         alt="CC-APP-EDUC"
-         style="width:88px; height:88px; object-fit:contain; border-radius:18px; background:rgba(255,255,255,.06); padding:10px; border:1px solid rgba(255,255,255,.10);">
-</div>
 
     <div class="login-wrap">
-        <div class="card">
+        <div class="stack">
 
-            <div class="title">LOGIN</div>
+            {{-- LOGO + NOM DU LOGICIEL (SUR LE MÊME FOND) --}}
+            <div class="brand-top">
+                <img src="{{ asset('images/logo.png') }}" alt="CC-APP-EDUC">
+                <div class="appname">CC-APP-EDUC</div>
+                <div class="tagline">Plateforme éducative • Cours • Quiz • IA • WhatsApp</div>
+            </div>
 
-            @if ($errors->any())
-                <div class="errors">
-                    @foreach ($errors->all() as $e)
-                        <div>• {{ $e }}</div>
-                    @endforeach
-                </div>
-            @endif
+            <div class="card">
+                <div class="title">LOGIN</div>
 
-            <x-auth-session-status class="mb-4" :status="session('status')" />
+                @if ($errors->any())
+                    <div class="errors">
+                        @foreach ($errors->all() as $e)
+                            <div>• {{ $e }}</div>
+                        @endforeach
+                    </div>
+                @endif
 
-            <form method="POST" action="{{ route('login') }}">
-                @csrf
+                <x-auth-session-status class="mb-4" :status="session('status')" />
 
-                {{-- IMPORTANT:
-                   Breeze attend "email". Même si tu veux pseudo, on garde name="email"
-                   et tu peux entrer pseudo OU email selon ta logique serveur.
-                --}}
-                <div class="row">
-                    <div class="lab">Name</div>
-                    <input class="inp" type="text" name="email" value="{{ old('email') }}"
-                           placeholder="Pseudo ou Email" required autofocus autocomplete="username">
-                </div>
+                <form method="POST" action="{{ route('login') }}">
+                    @csrf
 
-                <div class="row">
-                    <div class="lab">Password</div>
-                    <input class="inp" type="password" name="password"
-                           placeholder="********" required autocomplete="current-password">
-                </div>
+                    {{-- IMPORTANT: Breeze attend "email" --}}
+                    <div class="row">
+                        <div class="lab">Name</div>
+                        <input class="inp" type="text" name="email" value="{{ old('email') }}"
+                               placeholder="Pseudo ou Email" required autofocus autocomplete="username">
+                    </div>
 
-                <div class="remember">
-                    <input id="remember_me" type="checkbox" name="remember"
-                           style="accent-color: var(--gold); width:16px; height:16px;">
-                    <label for="remember_me">Remember me</label>
-                </div>
+                    <div class="row">
+                        <div class="lab">Password</div>
+                        <input class="inp" type="password" name="password"
+                               placeholder="********" required autocomplete="current-password">
+                    </div>
 
-                <button class="btn" type="submit">
-                    <span style="font-size:16px;">🔒</span>
-                    <span>LOGIN</span>
-                </button>
+                    <div class="remember">
+                        <input id="remember_me" type="checkbox" name="remember"
+                               style="accent-color: var(--gold); width:16px; height:16px;">
+                        <label for="remember_me">Remember me</label>
+                    </div>
 
-                <div class="actions">
-                    <a class="link" href="{{ route('register') }}">[ SIGN UP ]</a>
-                </div>
-            </form>
+                    <button class="btn" type="submit">
+                        <span style="font-size:16px;">🔒</span>
+                        <span>LOGIN</span>
+                    </button>
+
+                    <div class="actions">
+                        <a class="link" href="{{ route('register') }}">[ SIGN UP ]</a>
+                    </div>
+                </form>
+            </div>
 
         </div>
     </div>
