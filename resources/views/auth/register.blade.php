@@ -181,6 +181,18 @@
             margin-top:4px;
         }
 
+        .badge{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            padding:8px 10px;
+            border-radius:12px;
+            background: rgba(242,210,122,.10);
+            border: 1px solid rgba(242,210,122,.18);
+            color: rgba(255,255,255,.86);
+            font-size:12px;
+        }
+
         /* Full width items */
         .col-span-2{ grid-column: span 2 / span 2; }
 
@@ -238,7 +250,7 @@
             <div class="brand-top">
                 <img src="{{ asset('images/logo.png') }}" alt="CC-APP-EDUC">
                 <div class="appname">CC-APP-EDUC</div>
-                <div class="tagline">Inscription par pseudo • Choix du type de compte</div>
+                <div class="tagline">Inscription par pseudo • Type de compte • Classe obligatoire pour Élève</div>
             </div>
 
             <div class="card">
@@ -269,7 +281,7 @@
 
                         <div class="field">
                             <div class="label">Type de compte</div>
-                            <select class="sel" name="type_compte" required>
+                            <select class="sel" name="type_compte" id="type_compte" required>
                                 <option value="">-- Choisir --</option>
                                 <option value="eleve" {{ old('type_compte')==='eleve'?'selected':'' }}>Élève</option>
                                 <option value="enseignant" {{ old('type_compte')==='enseignant'?'selected':'' }}>Enseignant</option>
@@ -277,6 +289,34 @@
                                 <option value="admin" {{ old('type_compte')==='admin'?'selected':'' }}>Admin</option>
                             </select>
                             <div class="help">Tu choisis ton rôle dès l’inscription.</div>
+                        </div>
+
+                        {{-- CLASSE (obligatoire si élève) --}}
+                        <div class="field col-span-2" id="classe_block">
+                            <div class="label">Classe (obligatoire pour Élève)</div>
+                            <select class="sel" name="classe_id" id="classe_id">
+                                <option value="">-- Choisir la classe --</option>
+
+                                @if(!empty($classes) && count($classes) > 0)
+                                    @foreach($classes as $c)
+                                        <option value="{{ $c->id }}" {{ (string)old('classe_id') === (string)$c->id ? 'selected' : '' }}>
+                                            {{ $c->label }}
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="">Aucune classe disponible</option>
+                                @endif
+                            </select>
+
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+                                <span class="badge">🔒 Choix unique</span>
+                                <span class="badge">💳 Plateforme payante</span>
+                                <span class="badge">📚 Cours liés à la classe</span>
+                            </div>
+
+                            <div class="help">
+                                La classe se choisit une seule fois pendant l’inscription. Pour modifier plus tard, il faut contacter l’administration.
+                            </div>
                         </div>
 
                         <div class="field col-span-2">
@@ -308,6 +348,33 @@
                         <a class="link" href="{{ route('login') }}">Déjà inscrit ? Se connecter</a>
                     </div>
                 </form>
+
+                <script>
+                    (function () {
+                        const typeSelect = document.getElementById('type_compte');
+                        const classeBlock = document.getElementById('classe_block');
+                        const classeSelect = document.getElementById('classe_id');
+
+                        function toggleClasse() {
+                            const v = (typeSelect.value || '').toLowerCase();
+                            const isEleve = (v === 'eleve');
+
+                            // Afficher/masquer
+                            classeBlock.style.display = isEleve ? '' : 'none';
+
+                            // Rendre requis uniquement pour élève
+                            if (isEleve) {
+                                classeSelect.setAttribute('required', 'required');
+                            } else {
+                                classeSelect.removeAttribute('required');
+                                classeSelect.value = '';
+                            }
+                        }
+
+                        typeSelect.addEventListener('change', toggleClasse);
+                        toggleClasse();
+                    })();
+                </script>
             </div>
 
         </div>
