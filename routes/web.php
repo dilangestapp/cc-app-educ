@@ -10,32 +10,69 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// ✅ ADMIN ONLY (on remet ta vue dashboard existante)
+/*
+|--------------------------------------------------------------------------
+| DASHBOARDS PRINCIPAUX
+|--------------------------------------------------------------------------
+*/
+
+// ✅ ADMIN ONLY (ton dashboard existant)
 Route::get('/dashboard', function () {
-    return view('dashboard'); // <-- ton dashboard qui était déjà fonctionnel
+    return view('dashboard');
 })->middleware(['auth', 'verified', 'role:admin'])->name('dashboard');
 
-// ✅ DASHBOARDS SÉPARÉS
+// ✅ ELEVE
 Route::view('/eleve', 'dashboards.eleve')
     ->middleware(['auth', 'verified', 'role:eleve'])
     ->name('eleve.dashboard');
 
+// ✅ ENSEIGNANT
 Route::view('/enseignant', 'dashboards.enseignant')
     ->middleware(['auth', 'verified', 'role:enseignant'])
     ->name('enseignant.dashboard');
 
+// ✅ PARENT
 Route::view('/parent', 'dashboards.parent')
     ->middleware(['auth', 'verified', 'role:parent'])
     ->name('parent.dashboard');
 
+/*
+|--------------------------------------------------------------------------
+| ESPACE ELEVE — PAGES CLIQUABLES
+|--------------------------------------------------------------------------
+*/
+/*
+|--------------------------------------------------------------------------
+| ESPACE ELEVE — PAGES CLIQUABLES
+|--------------------------------------------------------------------------
+*/
+Route::prefix('eleve')
+    ->middleware(['auth', 'verified', 'role:eleve'])
+    ->group(function () {
+        Route::view('/cours', 'eleves.cours')->name('eleve.cours');
+        Route::view('/quiz', 'eleves.quiz')->name('eleve.quiz');
+        Route::view('/questions', 'eleves.questions')->name('eleve.questions');
+        Route::view('/groupes', 'eleves.groupes')->name('eleve.groupes');
+        Route::view('/progression', 'eleves.progression')->name('eleve.progression');
+    });
+
+
+/*
+|--------------------------------------------------------------------------
+| PROFIL (tous les comptes connectés)
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
 
-    // profil accessible à tous
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // ✅ Back-office => ADMIN ONLY
+    /*
+    |--------------------------------------------------------------------------
+    | BACK-OFFICE ADMIN (classes/matières/cours de gestion)
+    |--------------------------------------------------------------------------
+    */
     Route::middleware('role:admin')->group(function () {
 
         Route::get('/classes', [ClasseController::class, 'index'])->name('classes.index');
