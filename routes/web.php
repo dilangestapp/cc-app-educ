@@ -10,6 +10,7 @@ use App\Http\Controllers\CoursController;
 use App\Http\Controllers\EleveCoursController;
 use App\Http\Controllers\EleveClasseController;
 use App\Http\Controllers\AdminCoursClassesController;
+use App\Http\Controllers\AdminElevesController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -117,6 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/cours/{cours}/edit', [CoursController::class, 'edit'])->name('cours.edit');
         Route::put('/cours/{cours}', [CoursController::class, 'update'])->name('cours.update');
         Route::delete('/cours/{cours}', [CoursController::class, 'destroy'])->name('cours.destroy');
+        Route::get('/admin/eleves', [AdminElevesController::class, 'index'])->name('admin.eleves.index');
 
         Route::get('/matieres/{matiere}/cours/import', [CoursController::class, 'importForm'])->name('cours.import');
         Route::post('/matieres/{matiere}/cours/import', [CoursController::class, 'importStore'])->name('cours.import.store');
