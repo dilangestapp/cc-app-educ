@@ -47,11 +47,14 @@ Route::view('/parent', 'dashboards.parent')
 | ESPACE ELEVE (avec classe obligatoire + cours filtrés par classe)
 |--------------------------------------------------------------------------
 */
+use App\Http\Controllers\EleveCoursController;
+use App\Http\Controllers\EleveClasseController;
+
 Route::prefix('eleve')
     ->middleware(['auth', 'verified', 'role:eleve'])
     ->group(function () {
 
-        // ✅ Choix classe (si eleve n'a pas encore sa classe)
+        // ✅ Choix classe (sécurité pour anciens comptes)
         Route::get('/classe', [EleveClasseController::class, 'edit'])->name('eleve.classe.edit');
         Route::post('/classe', [EleveClasseController::class, 'update'])->name('eleve.classe.update');
 
@@ -59,7 +62,7 @@ Route::prefix('eleve')
         Route::get('/cours', [EleveCoursController::class, 'index'])->name('eleve.cours');
         Route::get('/cours/{id}', [EleveCoursController::class, 'show'])->name('eleve.cours.show');
 
-        // ✅ Les autres pages restent cliquables (placeholder)
+        // ✅ placeholders (restent cliquables)
         Route::view('/quiz', 'eleves.quiz')->name('eleve.quiz');
         Route::view('/questions', 'eleves.questions')->name('eleve.questions');
         Route::view('/groupes', 'eleves.groupes')->name('eleve.groupes');
