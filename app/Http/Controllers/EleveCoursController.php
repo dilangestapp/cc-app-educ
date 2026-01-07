@@ -16,16 +16,25 @@ class EleveCoursController extends Controller
         return 'cours';
     }
 
-    private function matieresTable(): string
+    private function matieresTable(): ?string
     {
         if (Schema::hasTable('matieres')) return 'matieres';
         if (Schema::hasTable('subjects')) return 'subjects';
-        return 'matieres';
+        return null;
+    }
+
+    private function matiereLabelCol(?string $matieresTable): ?string
+    {
+        if (!$matieresTable) return null;
+
+        foreach (['nom', 'name', 'libelle', 'titre', 'label'] as $col) {
+            if (Schema::hasColumn($matieresTable, $col)) return $col;
+        }
+        return null;
     }
 
     /**
-     * Détecte automatiquement la table pivot qui lie classe <-> matière
-     * (selon ton projet, ça peut varier).
+     * Détecte la table pivot classe<->matiere si tu n'utilises pas cours_classes.
      */
     private function classeMatierePivot(): ?string
     {
@@ -77,28 +86,50 @@ class EleveCoursController extends Controller
             ]);
         }
 
-        // Colonnes possibles
         $titleCol = Schema::hasColumn($coursTable, 'titre') ? 'titre'
             : (Schema::hasColumn($coursTable, 'title') ? 'title'
             : (Schema::hasColumn($coursTable, 'nom') ? 'nom' : null));
 
-        // 1) ✅ Si cours_classes contient des affectations -> on utilise ça
+        $matieresTable = $this->matieresTable();
+        $matiereLabelCol = $this->matiereLabelCol($matieresTable);
+        $canJoinMatiere = $matieresTable && $matiereLabelCol && Schema::hasColumn($coursTable, 'matiere_id');
+
+        // 1) ✅ Priorité: cours_classes si elle contient des affectations pour cette classe
         $useCoursClasses = Schema::hasTable('cours_classes')
             && DB::table('cours_classes')->where('classe_id', (int)$user->classe_id)->exists();
 
         if ($useCoursClasses) {
             $query = DB::table($coursTable)
                 ->join('cours_classes', 'cours_classes.cours_id', '=', $coursTable . '.id')
-                ->where('cours_classes.classe_id', '=', (int) $user->classe_id)
-                ->select([
-                    $coursTable . '.id',
-                    $titleCol ? ($coursTable . '.' . $titleCol . ' as title') : DB::raw("CONCAT('Cours #', {$coursTable}.id) as title"),
-                    Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
-                ])
-                ->orderByDesc($coursTable . '.id');
+                ->where('cours_classes.classe_id', '=', (int) $user->classe_id);
 
-            if ($q !== '' && $titleCol) {
-                $query->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+            if ($canJoinMatiere) {
+                $query->leftJoin($matieresTable, $matieresTable . '.id', '=', $coursTable . '.matiere_id');
+            }
+
+            $select = [
+                $coursTable . '.id',
+                $titleCol ? ($coursTable . '.' . $titleCol . ' as title') : DB::raw("CONCAT('Cours #', {$coursTable}.id) as title"),
+                Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
+            ];
+
+            if ($canJoinMatiere) {
+                $select[] = DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere');
+            } else {
+                $select[] = DB::raw("NULL as matiere");
+            }
+
+            $query->select($select)->orderByDesc($coursTable . '.id');
+
+            if ($q !== '') {
+                $query->where(function ($qq) use ($q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol) {
+                    if ($titleCol) {
+                        $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+                    }
+                    if ($canJoinMatiere) {
+                        $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
+                    }
+                });
             }
 
             $items = $query->paginate(10)->withQueryString();
@@ -110,11 +141,9 @@ class EleveCoursController extends Controller
             ]);
         }
 
-        // 2) ✅ SINON: logique normale de ton projet -> cours via matières affectées à la classe
+        // 2) ✅ Sinon: cours via matières affectées à la classe
         $pivot = $this->classeMatierePivot();
-        $matieresTable = $this->matieresTable();
-
-        if (!$pivot || !Schema::hasTable($matieresTable)) {
+        if (!$pivot || !Schema::hasTable($pivot)) {
             return view('eleves.cours', [
                 'items' => $this->emptyPaginator($request),
                 'q' => $q,
@@ -122,7 +151,6 @@ class EleveCoursController extends Controller
             ]);
         }
 
-        // Vérifier que la table cours a bien matiere_id
         if (!Schema::hasColumn($coursTable, 'matiere_id')) {
             return view('eleves.cours', [
                 'items' => $this->emptyPaginator($request),
@@ -131,7 +159,6 @@ class EleveCoursController extends Controller
             ]);
         }
 
-        // Matières de la classe
         $matiereIds = DB::table($pivot)
             ->where('classe_id', (int) $user->classe_id)
             ->pluck('matiere_id')
@@ -141,22 +168,40 @@ class EleveCoursController extends Controller
             return view('eleves.cours', [
                 'items' => $this->emptyPaginator($request),
                 'q' => $q,
-                'error' => "Aucune matière n'est affectée à ta classe. (Admin: affecte des matières à cette classe)",
+                'error' => "Aucune matière n'est affectée à ta classe.",
             ]);
         }
 
-        // Cours des matières de la classe
         $query = DB::table($coursTable)
-            ->whereIn('matiere_id', $matiereIds)
-            ->select([
-                $coursTable . '.id',
-                $titleCol ? ($coursTable . '.' . $titleCol . ' as title') : DB::raw("CONCAT('Cours #', {$coursTable}.id) as title"),
-                Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
-            ])
-            ->orderByDesc($coursTable . '.id');
+            ->whereIn($coursTable . '.matiere_id', $matiereIds);
 
-        if ($q !== '' && $titleCol) {
-            $query->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+        if ($canJoinMatiere) {
+            $query->leftJoin($matieresTable, $matieresTable . '.id', '=', $coursTable . '.matiere_id');
+        }
+
+        $select = [
+            $coursTable . '.id',
+            $titleCol ? ($coursTable . '.' . $titleCol . ' as title') : DB::raw("CONCAT('Cours #', {$coursTable}.id) as title"),
+            Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
+        ];
+
+        if ($canJoinMatiere) {
+            $select[] = DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere');
+        } else {
+            $select[] = DB::raw("NULL as matiere");
+        }
+
+        $query->select($select)->orderByDesc($coursTable . '.id');
+
+        if ($q !== '') {
+            $query->where(function ($qq) use ($q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol) {
+                if ($titleCol) {
+                    $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+                }
+                if ($canJoinMatiere) {
+                    $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
+                }
+            });
         }
 
         $items = $query->paginate(10)->withQueryString();
@@ -179,19 +224,17 @@ class EleveCoursController extends Controller
         $coursTable = $this->coursTable();
         if (!Schema::hasTable($coursTable)) abort(404);
 
-        // 1) autorisation via cours_classes si existe et utilisé
+        // (inchangé) — autorisations
         if (Schema::hasTable('cours_classes')) {
             $ok = DB::table('cours_classes')
                 ->where('cours_id', (int)$id)
                 ->where('classe_id', (int)$user->classe_id)
                 ->exists();
-
             if ($ok) {
                 return $this->renderCourse($coursTable, (int)$id);
             }
         }
 
-        // 2) autorisation via matières affectées
         $pivot = $this->classeMatierePivot();
         if (!$pivot || !Schema::hasColumn($coursTable, 'matiere_id')) abort(403);
 

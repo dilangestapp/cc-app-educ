@@ -10,7 +10,6 @@
     </x-slot>
 
     @php
-        // Filet sécurité anti-500
         $items = $items ?? null;
         $q = $q ?? '';
         $error = $error ?? null;
@@ -28,7 +27,7 @@
             <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-5">
                 <form method="GET" class="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <input type="text" name="q" value="{{ $q }}"
-                           placeholder="Rechercher un cours..."
+                           placeholder="Rechercher un cours ou une matière..."
                            class="w-full sm:max-w-md rounded-lg border-gray-300 focus:border-gray-400 focus:ring-gray-400" />
                     <button class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800">
                         Rechercher
@@ -41,7 +40,7 @@
                     <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center">
                         <div class="text-sm font-semibold text-gray-900">Aucun cours disponible</div>
                         <div class="mt-1 text-sm text-gray-500">
-                            Si tu es admin, affecte des cours à la classe de l’élève.
+                            Si tu es admin, affecte des matières (ou cours) à la classe de l’élève.
                         </div>
                     </div>
                 @else
@@ -50,8 +49,15 @@
                             <div class="rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                 <div class="min-w-0">
                                     <div class="font-semibold text-gray-900 truncate">{{ $c->title }}</div>
+
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        <span class="font-semibold">Matière :</span>
+                                        {{ $c->matiere ?? '—' }}
+                                    </div>
+
                                     <div class="text-xs text-gray-500 mt-1">ID: {{ $c->id }}</div>
                                 </div>
+
                                 <a href="{{ route('eleve.cours.show', $c->id) }}"
                                    class="inline-flex justify-center px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800">
                                     Lire
