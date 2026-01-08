@@ -42,7 +42,7 @@
                                 <h1 class="mt-1 text-xl sm:text-2xl font-bold text-white">
                                     Importer un cours ({{ $matiereRow->nom }})
                                 </h1>
-                                <p class="mt-1 hint">Le texte sera extrait et pré-remplira automatiquement le formulaire “Nouveau cours”.</p>
+                                <p class="mt-1 hint">DOCX recommandé : texte structuré + images extraites automatiquement.</p>
                             </div>
 
                             <div class="flex gap-2 flex-wrap">
@@ -55,6 +55,12 @@
                         @if (session('error'))
                             <div class="mb-4 rounded-xl border border-red-400/25 bg-red-300/10 px-4 py-3 text-red-100">
                                 {{ session('error') }}
+                            </div>
+                        @endif
+
+                        @if (session('success'))
+                            <div class="mb-4 rounded-xl border border-green-400/25 bg-green-300/10 px-4 py-3 text-green-100">
+                                {{ session('success') }}
                             </div>
                         @endif
 
@@ -74,7 +80,7 @@
                                 <input type="file" name="fichier" accept=".docx,.pdf"
                                        class="glass-input w-full rounded-xl px-4 py-3 text-sm" required>
                                 <div class="mt-2 hint">
-                                    DOCX recommandé. PDF nécessite : <code>composer require smalot/pdfparser</code>
+                                    DOCX = ✅ images + mise en page. PDF = ✅ texte (si PDF scanné, pas de texte).
                                 </div>
                             </div>
 

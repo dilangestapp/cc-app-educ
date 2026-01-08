@@ -33,9 +33,6 @@ class EleveCoursController extends Controller
         return null;
     }
 
-    /**
-     * Détecte la table pivot classe<->matiere si tu n'utilises pas cours_classes.
-     */
     private function classeMatierePivot(): ?string
     {
         $candidates = [
@@ -52,50 +49,63 @@ class EleveCoursController extends Controller
                 return $t;
             }
         }
-
         return null;
     }
 
     private function emptyPaginator(Request $request): LengthAwarePaginator
     {
         return new LengthAwarePaginator(
-            [],
-            0,
-            10,
-            1,
-            ['path' => $request->url(), 'query' => $request->query()]
+            items: [],
+            total: 0,
+            perPage: 10,
+            currentPage: 1,
+            options: ['path' => $request->url(), 'query' => $request->query()]
         );
     }
 
-    /**
-     * ✅ Filtre recherche SAFE (évite where() vide / OR mal placé)
-     */
-    private function applySearchFilter($query, string $q, ?string $coursTable, ?string $titleCol, bool $canJoinMatiere, ?string $matieresTable, ?string $matiereLabelCol): void
+    private function isProbablyHtml(string $content): bool
     {
-        if ($q === '') return;
+        return (bool) preg_match('/<\s*(p|h1|h2|h3|h4|img|table|ul|ol|li|div|span|br|strong|em|a|blockquote|pre)\b/i', $content);
+    }
 
-        $hasTitle = !empty($titleCol);
-        $hasMatiere = $canJoinMatiere && !empty($matieresTable) && !empty($matiereLabelCol);
+    private function normalizeCourseHtml(string $html): string
+    {
+        $html = preg_replace('~<script\b[^>]*>.*?</script>~is', '', $html) ?? $html;
+        $html = preg_replace('/\son\w+\s*=\s*"[^"]*"/i', '', $html) ?? $html;
+        $html = preg_replace("/\son\w+\s*=\s*'[^']*'/i", '', $html) ?? $html;
 
-        // Si rien à filtrer, on ne touche pas à la requête (évite SQL invalide)
-        if (!$hasTitle && !$hasMatiere) return;
+        // Fix src images
+        $html = preg_replace_callback('~<img\b[^>]*\bsrc\s*=\s*([\'"])(.*?)\1~is', function ($m) {
+            $src = trim((string) $m[2]);
+            $src = str_replace('\\', '/', $src);
 
-        $query->where(function ($qq) use ($q, $coursTable, $titleCol, $hasTitle, $hasMatiere, $matieresTable, $matiereLabelCol) {
-            $first = true;
-
-            if ($hasTitle) {
-                $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
-                $first = false;
+            // Bloque file:// ou C:\...
+            if (preg_match('~^(file:|[a-zA-Z]:/)~', $src)) {
+                return str_replace($m[0], '<img src=""', $m[0]);
             }
 
-            if ($hasMatiere) {
-                if ($first) {
-                    $qq->where($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
-                } else {
-                    $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
-                }
+            if (preg_match('~^data:image/~i', $src)) {
+                return str_replace($m[2], $src, $m[0]);
             }
-        });
+
+            // public/xxx => /xxx
+            if (str_starts_with($src, 'public/')) {
+                $src = substr($src, 7);
+            }
+
+            // storage/xxx => /storage/xxx
+            if (str_starts_with($src, 'storage/')) {
+                $src = '/' . $src;
+            }
+
+            if ($src !== '' && !str_starts_with($src, '/') && !preg_match('~^https?://~i', $src)) {
+                $src = '/' . $src;
+            }
+
+            return str_replace($m[2], $src, $m[0]);
+        }, $html) ?? $html;
+
+        return $html;
     }
 
     public function index(Request $request)
@@ -125,7 +135,7 @@ class EleveCoursController extends Controller
         $matiereLabelCol = $this->matiereLabelCol($matieresTable);
         $canJoinMatiere = $matieresTable && $matiereLabelCol && Schema::hasColumn($coursTable, 'matiere_id');
 
-        // 1) ✅ Priorité: cours_classes si elle contient des affectations pour cette classe
+        // 1) Priorité: cours_classes
         $useCoursClasses = Schema::hasTable('cours_classes')
             && DB::table('cours_classes')->where('classe_id', (int)$user->classe_id)->exists();
 
@@ -142,27 +152,24 @@ class EleveCoursController extends Controller
                 $coursTable . '.id',
                 $titleCol ? ($coursTable . '.' . $titleCol . ' as title') : DB::raw("CONCAT('Cours #', {$coursTable}.id) as title"),
                 Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
+                $canJoinMatiere ? DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere') : DB::raw("NULL as matiere"),
             ];
-
-            $select[] = $canJoinMatiere
-                ? DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere')
-                : DB::raw("NULL as matiere");
 
             $query->select($select)->orderByDesc($coursTable . '.id');
 
-            // ✅ Search SAFE
-            $this->applySearchFilter($query, $q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol);
+            if ($q !== '') {
+                $query->where(function ($qq) use ($q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol) {
+                    if ($titleCol) $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+                    if ($canJoinMatiere) $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
+                });
+            }
 
             $items = $query->paginate(10)->withQueryString();
 
-            return view('eleves.cours', [
-                'items' => $items,
-                'q' => $q,
-                'error' => null,
-            ]);
+            return view('eleves.cours', ['items' => $items, 'q' => $q, 'error' => null]);
         }
 
-        // 2) ✅ Sinon: cours via matières affectées à la classe
+        // 2) Fallback: via pivot classe<->matiere
         $pivot = $this->classeMatierePivot();
         if (!$pivot || !Schema::hasTable($pivot)) {
             return view('eleves.cours', [
@@ -193,35 +200,29 @@ class EleveCoursController extends Controller
             ]);
         }
 
-        $query = DB::table($coursTable)
-            ->whereIn($coursTable . '.matiere_id', $matiereIds);
+        $query = DB::table($coursTable)->whereIn($coursTable . '.matiere_id', $matiereIds);
 
         if ($canJoinMatiere) {
             $query->leftJoin($matieresTable, $matieresTable . '.id', '=', $coursTable . '.matiere_id');
         }
 
-        $select = [
+        $query->select([
             $coursTable . '.id',
             $titleCol ? ($coursTable . '.' . $titleCol . ' as title') : DB::raw("CONCAT('Cours #', {$coursTable}.id) as title"),
             Schema::hasColumn($coursTable, 'created_at') ? $coursTable . '.created_at' : DB::raw('NULL as created_at'),
-        ];
+            $canJoinMatiere ? DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere') : DB::raw("NULL as matiere"),
+        ])->orderByDesc($coursTable . '.id');
 
-        $select[] = $canJoinMatiere
-            ? DB::raw($matieresTable . '.' . $matiereLabelCol . ' as matiere')
-            : DB::raw("NULL as matiere");
-
-        $query->select($select)->orderByDesc($coursTable . '.id');
-
-        // ✅ Search SAFE
-        $this->applySearchFilter($query, $q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol);
+        if ($q !== '') {
+            $query->where(function ($qq) use ($q, $coursTable, $titleCol, $canJoinMatiere, $matieresTable, $matiereLabelCol) {
+                if ($titleCol) $qq->where($coursTable . '.' . $titleCol, 'like', "%{$q}%");
+                if ($canJoinMatiere) $qq->orWhere($matieresTable . '.' . $matiereLabelCol, 'like', "%{$q}%");
+            });
+        }
 
         $items = $query->paginate(10)->withQueryString();
 
-        return view('eleves.cours', [
-            'items' => $items,
-            'q' => $q,
-            'error' => null,
-        ]);
+        return view('eleves.cours', ['items' => $items, 'q' => $q, 'error' => null]);
     }
 
     public function show(Request $request, $id)
@@ -235,19 +236,14 @@ class EleveCoursController extends Controller
         $coursTable = $this->coursTable();
         if (!Schema::hasTable($coursTable)) abort(404);
 
-        // ✅ autorisations via cours_classes (si utilisé)
         if (Schema::hasTable('cours_classes')) {
             $ok = DB::table('cours_classes')
                 ->where('cours_id', (int)$id)
                 ->where('classe_id', (int)$user->classe_id)
                 ->exists();
-
-            if ($ok) {
-                return $this->renderCourse($coursTable, (int)$id);
-            }
+            if ($ok) return $this->renderCourse($coursTable, (int)$id);
         }
 
-        // ✅ autorisations via matières affectées
         $pivot = $this->classeMatierePivot();
         if (!$pivot || !Schema::hasColumn($coursTable, 'matiere_id')) abort(403);
 
@@ -282,12 +278,16 @@ class EleveCoursController extends Controller
         if (!$row) abort(404);
 
         $title = $titleCol ? ($row->{$titleCol} ?? ('Cours #'.$row->id)) : ('Cours #'.$row->id);
-        $content = $contentCol ? ($row->{$contentCol} ?? '') : '';
+        $raw = $contentCol ? (string)($row->{$contentCol} ?? '') : '';
+
+        $isHtml = $this->isProbablyHtml($raw);
+        $content = $isHtml ? $this->normalizeCourseHtml($raw) : $raw;
 
         return view('eleves.cours_show', [
             'id' => (int)$row->id,
             'title' => $title,
             'content' => $content,
+            'isHtml' => $isHtml,
         ]);
     }
 }
