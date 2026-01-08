@@ -7,17 +7,12 @@
             border-bottom: 1px solid rgba(255,255,255,.10) !important;
         }
         nav a, nav button, nav span, nav div { color: rgba(255,255,255,.88) !important; }
-        nav a:hover, nav button:hover { color: #fff !important; }
-        body, main, .min-h-screen, .glass-card, p, h1, h2, h3, label, span, a, small, strong {
-            color: rgba(255,255,255,.90);
-        }
+        body, main, .min-h-screen, p, h1, h2, h3, label, span, a, small, strong { color: rgba(255,255,255,.90); }
         .glass-card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); backdrop-filter: blur(14px); }
         .glass-input { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.92); }
         .btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.55rem 1rem; border-radius:.9rem; font-size:.875rem; font-weight:600; transition:.15s; white-space:nowrap; }
         .btn-ghost { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.10); color:#fff; }
-        .btn-ghost:hover { background: rgba(255,255,255,.16); }
         .btn-primary { background: rgb(79 70 229); color:#fff; }
-        .btn-primary:hover { background: rgb(67 56 202); }
         .hint { color: rgba(255,255,255,.70); font-size: .9rem; }
     </style>
 
@@ -42,7 +37,9 @@
                                 <h1 class="mt-1 text-xl sm:text-2xl font-bold text-white">
                                     Importer un cours ({{ $matiereRow->nom }})
                                 </h1>
-                                <p class="mt-1 hint">DOCX recommandé : texte structuré + images extraites automatiquement.</p>
+                                <p class="mt-1 hint">
+                                    DOCX recommandé : titres + paragraphe + images seront formatés automatiquement.
+                                </p>
                             </div>
 
                             <div class="flex gap-2 flex-wrap">
@@ -80,7 +77,7 @@
                                 <input type="file" name="fichier" accept=".docx,.pdf"
                                        class="glass-input w-full rounded-xl px-4 py-3 text-sm" required>
                                 <div class="mt-2 hint">
-                                    DOCX = ✅ images + mise en page. PDF = ✅ texte (si PDF scanné, pas de texte).
+                                    PDF : texte seulement (si pdftotext dispo). DOCX : texte + images + mise en forme.
                                 </div>
                             </div>
 
