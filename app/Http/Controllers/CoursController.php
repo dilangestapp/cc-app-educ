@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class CoursController extends Controller
 {
@@ -41,9 +40,11 @@ class CoursController extends Controller
         return view('cours.create', compact('matiereRow', 'classes'));
     }
 
-    /**
-     * ✅ Page dédiée à l’import (route('cours.import'))
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | IMPORT (page)
+    |--------------------------------------------------------------------------
+    */
     public function importForm($matiere)
     {
         abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
@@ -55,39 +56,46 @@ class CoursController extends Controller
         return view('cours.import', compact('matiereRow'));
     }
 
-    /**
-     * ✅ POST import (route('cours.import.store'))
-     * Remplit automatiquement titre + contenu (HTML propre) + images (DOCX).
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | IMPORT (submit)
+    |--------------------------------------------------------------------------
+    */
     public function importStore(Request $request, $matiere)
     {
+        abort_if(!Schema::hasTable('matieres'), 500, "Table 'matieres' manquante.");
+
         $matiereId = (int)$matiere;
 
-        $request->validate([
-            'fichier' => 'required|file|max:51200', // 50MB
-        ]);
+        // ⚠️ Important : ne PAS faire $request->validate('file') ici, sinon Laravel renvoie
+        // "The fichier failed to upload." avant qu'on puisse afficher une vraie raison.
 
         if (!$request->hasFile('fichier')) {
-            return redirect()->route('cours.import', $matiereId)
-                ->with('error', "Aucun fichier reçu. Vérifie upload_max_filesize/post_max_size.");
+            return back()->with('error', "Aucun fichier reçu. Vérifie la taille (limites serveur) et réessaie.");
         }
 
         $file = $request->file('fichier');
+
         if (!$file->isValid()) {
-            $err = $file->getError();
-            return redirect()->route('cours.import', $matiereId)
-                ->with('error', "Upload échoué (code $err). Souvent dû à la taille/limites PHP.");
+            $code = $file->getError();
+            return back()->with('error', "Upload échoué (code $code). Cause fréquente : fichier trop lourd ou limite serveur.");
+        }
+
+        // 50 MB
+        if ($file->getSize() > 50 * 1024 * 1024) {
+            return back()->with('error', "Fichier trop lourd (> 50MB). Essaie plus petit ou augmente les limites serveur.");
         }
 
         $ext = strtolower((string)$file->getClientOriginalExtension());
         if (!in_array($ext, ['docx', 'pdf'], true)) {
-            return redirect()->route('cours.import', $matiereId)
-                ->with('error', "Format non supporté. Utilise DOCX ou PDF.");
+            return back()->with('error', "Format non supporté. Utilise DOCX ou PDF.");
         }
 
-        // Stockage temporaire (local disk)
+        // Dossier temporaire
         $tmpDir = storage_path('app/tmp_imports');
-        if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0775, true); }
+        if (!is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0775, true);
+        }
 
         $tmpName = uniqid('import_', true) . '.' . $ext;
         $tmpPath = $tmpDir . DIRECTORY_SEPARATOR . $tmpName;
@@ -95,53 +103,63 @@ class CoursController extends Controller
         try {
             $file->move($tmpDir, $tmpName);
         } catch (\Throwable $e) {
-            return redirect()->route('cours.import', $matiereId)
-                ->with('error', "Impossible de sauvegarder le fichier importé (permissions storage).");
+            return back()->with('error', "Impossible de sauvegarder le fichier importé (permissions storage).");
         }
 
-        $originalTitle = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $title = $originalTitle ?: ('Cours_' . date('Ymd_His'));
+        $title = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) ?: 'Cours importé';
 
-        // ✅ Extraction
-        $html = '';
-        if ($ext === 'docx') {
-            $folder = 'cours_images/' . date('Ymd_His') . '_' . Str::lower(Str::random(6));
-            $html = $this->docxToHtmlWithImages($tmpPath, $folder);
-        } else { // pdf
-            $text = $this->extractTextFromPdf($tmpPath);
-            $text = $this->cleanText((string)$text);
-            if ($text !== '') {
-                $html = $this->plainTextToHtml($text);
+        try {
+            if ($ext === 'docx') {
+                $folder = 'cours_imports/' . date('Ymd_His') . '_' . substr(md5($tmpName), 0, 10);
+                $html = $this->docxToHtmlWithImages($tmpPath, $folder);
+
+                @unlink($tmpPath);
+
+                if (trim(strip_tags($html)) === '') {
+                    return back()->with('error', "DOCX illisible (aucun contenu).");
+                }
+
+                return redirect()
+                    ->route('cours.create', $matiereId)
+                    ->withInput([
+                        'titre'   => $title,
+                        'contenu' => $html, // ✅ HTML + <img src="/storage/...">
+                        'actif'   => 1,
+                    ])
+                    ->with('success', 'DOCX importé : contenu + images pré-remplis. Clique sur “Créer” pour enregistrer.');
+
+            } else { // PDF
+                $text = $this->extractTextFromPdf($tmpPath);
+                @unlink($tmpPath);
+
+                if (trim($text) === '') {
+                    return back()->with('error', "PDF illisible (pas de texte récupérable). ✅ Essaie en DOCX, ou installe pdftotext côté serveur.");
+                }
+
+                $html = $this->textToHtml($text);
+
+                return redirect()
+                    ->route('cours.create', $matiereId)
+                    ->withInput([
+                        'titre'   => $title,
+                        'contenu' => $html, // HTML simple
+                        'actif'   => 1,
+                    ])
+                    ->with('success', 'PDF importé : texte pré-rempli (images PDF non supportées). Clique sur “Créer” pour enregistrer.');
             }
+        } catch (\Throwable $e) {
+            @unlink($tmpPath);
+            return back()->with('error', "Erreur import : " . $e->getMessage());
         }
-
-        // Nettoyage fichier temp
-        @unlink($tmpPath);
-
-        if (trim($html) === '') {
-            $msg = ($ext === 'pdf')
-                ? "PDF illisible (pas de texte récupérable). ✅ Essaie en DOCX, ou installe pdftotext côté serveur."
-                : "Impossible de lire le DOCX. (ZipArchive manquant ou docx invalide).";
-            return redirect()->route('cours.import', $matiereId)->with('error', $msg);
-        }
-
-        return redirect()
-            ->route('cours.create', $matiereId)
-            ->withInput([
-                'titre'   => $title,
-                'contenu' => $html,   // ✅ HTML prêt à enregistrer
-                'actif'   => 1,
-            ])
-            ->with('success', 'Import OK : Titre + Contenu (formaté) pré-remplis.');
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD NORMAL
+    |--------------------------------------------------------------------------
+    */
     public function store(Request $request, $matiere)
     {
-        // ✅ si jamais un vieux formulaire post encore ici avec _action=import
-        if ($request->input('_action') === 'import') {
-            return $this->importStore($request, $matiere);
-        }
-
         abort_if(!Schema::hasTable('cours'), 500, "Table 'cours' manquante.");
 
         $matiereId = (int)$matiere;
@@ -224,50 +242,44 @@ class CoursController extends Controller
         return back()->with('success', 'Cours supprimé.');
     }
 
-    // ======================================================
-    // ✅ DOCX -> HTML + images
-    // ======================================================
-
-    private function docxToHtmlWithImages(string $path, string $publicFolder): string
+    /*
+    |--------------------------------------------------------------------------
+    | DOCX -> HTML + Images
+    |--------------------------------------------------------------------------
+    */
+    private function docxToHtmlWithImages(string $docxPath, string $publicFolder): string
     {
-        if (!class_exists(\ZipArchive::class)) return '';
+        if (!class_exists(\ZipArchive::class)) {
+            throw new \RuntimeException("ZipArchive manquant (zip extension).");
+        }
 
         $zip = new \ZipArchive();
-        if ($zip->open($path) !== true) return '';
+        $ok = $zip->open($docxPath);
+        if ($ok !== true) {
+            throw new \RuntimeException("Impossible d'ouvrir le DOCX.");
+        }
 
-        $docXml = $zip->getFromName('word/document.xml');
+        $documentXml = $zip->getFromName('word/document.xml');
         $relsXml = $zip->getFromName('word/_rels/document.xml.rels');
 
-        if ($docXml === false) { $zip->close(); return ''; }
+        if ($documentXml === false) {
+            $zip->close();
+            throw new \RuntimeException("DOCX invalide (document.xml introuvable).");
+        }
 
-        $relsMap = [];
-        if ($relsXml !== false) {
-            $relsDom = new \DOMDocument();
-            $relsDom->loadXML($relsXml);
-
-            $relsXpath = new \DOMXPath($relsDom);
-            $relsXpath->registerNamespace('rels', 'http://schemas.openxmlformats.org/package/2006/relationships');
-
-            foreach ($relsXpath->query('//rels:Relationship') as $rel) {
-                /** @var \DOMElement $rel */
-                $id = $rel->getAttribute('Id');
-                $target = $rel->getAttribute('Target');
-                if ($id && $target) {
-                    $relsMap[$id] = $target; // ex: media/image1.png
-                }
+        // Map rId -> target media
+        $relMap = [];
+        if (is_string($relsXml)) {
+            preg_match_all('/Relationship[^>]+Id="([^"]+)"[^>]+Target="([^"]+)"/i', $relsXml, $m, PREG_SET_ORDER);
+            foreach ($m as $row) {
+                $relMap[$row[1]] = $row[2]; // ex: media/image1.png
             }
         }
 
-        // Prépare dossier public
-        if (!Storage::disk('public')->exists($publicFolder)) {
-            Storage::disk('public')->makeDirectory($publicFolder);
-        }
-
-        $extractedImages = []; // rid => url
-
+        // Parse document xml
         $dom = new \DOMDocument();
         $dom->preserveWhiteSpace = false;
-        $dom->loadXML($docXml);
+        $dom->loadXML($documentXml);
 
         $xp = new \DOMXPath($dom);
         $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
@@ -276,179 +288,103 @@ class CoursController extends Controller
 
         $htmlParts = [];
 
-        // Parcours body: paragraphes + tableaux
-        $body = $xp->query('//w:body')->item(0);
-        if (!$body) { $zip->close(); return ''; }
+        /** @var \DOMElement $p */
+        foreach ($xp->query('//w:body/w:p') as $p) {
 
-        foreach ($body->childNodes as $node) {
-            if (!$node instanceof \DOMElement) continue;
-
-            if ($node->namespaceURI === 'http://schemas.openxmlformats.org/wordprocessingml/2006/main' && $node->localName === 'p') {
-                $htmlParts[] = $this->renderDocxParagraph($xp, $node, $zip, $relsMap, $publicFolder, $extractedImages);
+            $pStyle = '';
+            $styleNode = $xp->query('w:pPr/w:pStyle', $p)->item(0);
+            if ($styleNode instanceof \DOMElement) {
+                $pStyle = (string)$styleNode->getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'val');
+                if ($pStyle === '') $pStyle = (string)$styleNode->getAttribute('w:val');
             }
 
-            if ($node->namespaceURI === 'http://schemas.openxmlformats.org/wordprocessingml/2006/main' && $node->localName === 'tbl') {
-                $htmlParts[] = $this->renderDocxTable($xp, $node, $zip, $relsMap, $publicFolder, $extractedImages);
+            $tag = 'p';
+            if (stripos($pStyle, 'Heading1') !== false) $tag = 'h2';
+            if (stripos($pStyle, 'Heading2') !== false) $tag = 'h3';
+
+            $inner = '';
+
+            /** @var \DOMElement $rNode */
+            foreach ($xp->query('.//w:r', $p) as $rNode) {
+
+                // IMAGE ?
+                $blip = $xp->query('.//a:blip', $rNode)->item(0);
+                if ($blip instanceof \DOMElement) {
+                    $rid = $blip->getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+                    if ($rid && isset($relMap[$rid])) {
+                        $target = $relMap[$rid]; // media/imageX.png
+                        $bin = $zip->getFromName('word/' . $target);
+                        if ($bin !== false) {
+                            $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION)) ?: 'png';
+                            $name = 'img_' . substr(md5($rid . microtime(true)), 0, 10) . '.' . $ext;
+                            $savePath = $publicFolder . '/' . $name;
+
+                            Storage::disk('public')->put($savePath, $bin);
+
+                            $src = '/storage/' . ltrim($savePath, '/');
+                            $inner .= '<div class="docx-image"><img src="' . htmlspecialchars($src) . '" alt=""></div>';
+                        }
+                    }
+                    continue;
+                }
+
+                // TEXTE / BR
+                $isBold = $xp->query('w:rPr/w:b', $rNode)->length > 0;
+                $isItalic = $xp->query('w:rPr/w:i', $rNode)->length > 0;
+
+                $text = '';
+                foreach ($xp->query('.//w:t', $rNode) as $tNode) {
+                    $text .= $tNode->textContent;
+                }
+                if ($xp->query('.//w:br', $rNode)->length > 0) {
+                    $text .= "\n";
+                }
+
+                $text = (string)$text;
+                if ($text === '') continue;
+
+                $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+                $safe = nl2br($safe);
+
+                if ($isBold) $safe = '<strong>' . $safe . '</strong>';
+                if ($isItalic) $safe = '<em>' . $safe . '</em>';
+
+                $inner .= $safe;
             }
+
+            $inner = trim($inner);
+            if ($inner === '') continue;
+
+            $htmlParts[] = "<{$tag}>{$inner}</{$tag}>";
         }
 
         $zip->close();
 
-        $out = trim(implode("\n", array_filter($htmlParts)));
-        return $out;
+        $html = implode("\n", $htmlParts);
+
+        // Bloque scripts au cas où
+        $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html) ?? $html;
+
+        // Wrap
+        return '<div class="course-docx">' . $html . '</div>';
     }
 
-    private function renderDocxParagraph(\DOMXPath $xp, \DOMElement $p, \ZipArchive $zip, array $relsMap, string $publicFolder, array &$extractedImages): string
-    {
-        $style = '';
-        $styleNode = $xp->query('./w:pPr/w:pStyle', $p)->item(0);
-        if ($styleNode instanceof \DOMElement) {
-            $style = $styleNode->getAttribute('w:val') ?: $styleNode->getAttribute('val') ?: '';
-        }
-
-        $tag = 'p';
-        if (preg_match('/Heading1|Titre1|Title/i', $style)) $tag = 'h1';
-        elseif (preg_match('/Heading2|Titre2/i', $style)) $tag = 'h2';
-        elseif (preg_match('/Heading3|Titre3/i', $style)) $tag = 'h3';
-
-        $inner = [];
-
-        foreach ($xp->query('./w:r', $p) as $r) {
-            /** @var \DOMElement $r */
-
-            // image ?
-            $blip = $xp->query('.//a:blip', $r)->item(0);
-            if ($blip instanceof \DOMElement) {
-                $rid = $blip->getAttribute('r:embed') ?: $blip->getAttribute('embed');
-                if ($rid) {
-                    $src = $this->extractDocxImageIfNeeded($zip, $rid, $relsMap, $publicFolder, $extractedImages);
-                    if ($src) $inner[] = '<img src="'.e($src).'" alt="" />';
-                    continue;
-                }
-            }
-
-            // texte
-            $text = '';
-            foreach ($xp->query('.//w:t', $r) as $t) {
-                $text .= $t->textContent;
-            }
-
-            // saut de ligne
-            if ($xp->query('.//w:br', $r)->length > 0) {
-                $text .= "\n";
-            }
-
-            $text = $this->escapeText($text);
-            if ($text === '') continue;
-
-            $isBold = $xp->query('./w:rPr/w:b', $r)->length > 0;
-            $isItalic = $xp->query('./w:rPr/w:i', $r)->length > 0;
-
-            if ($isItalic) $text = '<em>'.$text.'</em>';
-            if ($isBold) $text = '<strong>'.$text.'</strong>';
-
-            $inner[] = $text;
-        }
-
-        $content = trim(implode('', $inner));
-        if ($content === '') return '';
-
-        // si le paragraphe contient des "\n", on garde <br>
-        $content = nl2br($content, false);
-
-        return "<{$tag}>{$content}</{$tag}>";
-    }
-
-    private function renderDocxTable(\DOMXPath $xp, \DOMElement $tbl, \ZipArchive $zip, array $relsMap, string $publicFolder, array &$extractedImages): string
-    {
-        $rowsHtml = [];
-
-        foreach ($xp->query('./w:tr', $tbl) as $tr) {
-            $cellsHtml = [];
-            foreach ($xp->query('./w:tc', $tr) as $tc) {
-                $cellParts = [];
-                foreach ($xp->query('.//w:p', $tc) as $p) {
-                    if ($p instanceof \DOMElement) {
-                        $cellParts[] = $this->renderDocxParagraph($xp, $p, $zip, $relsMap, $publicFolder, $extractedImages);
-                    }
-                }
-                $cell = trim(implode('', array_filter($cellParts)));
-                if ($cell === '') $cell = '&nbsp;';
-                $cellsHtml[] = '<td>'.$cell.'</td>';
-            }
-            $rowsHtml[] = '<tr>'.implode('', $cellsHtml).'</tr>';
-        }
-
-        if (!$rowsHtml) return '';
-        return '<div class="table-wrap"><table>'.implode('', $rowsHtml).'</table></div>';
-    }
-
-    private function extractDocxImageIfNeeded(\ZipArchive $zip, string $rid, array $relsMap, string $publicFolder, array &$extractedImages): ?string
-    {
-        if (isset($extractedImages[$rid])) {
-            return $extractedImages[$rid];
-        }
-
-        $target = $relsMap[$rid] ?? null; // ex media/image1.png
-        if (!$target) return null;
-
-        $target = ltrim($target, '/');
-        $zipPath = str_starts_with($target, 'word/') ? $target : 'word/'.$target;
-
-        $data = $zip->getFromName($zipPath);
-        if ($data === false) return null;
-
-        $base = basename($target);
-        $ext = pathinfo($base, PATHINFO_EXTENSION);
-        if (!$ext) $ext = 'png';
-
-        $filename = 'img_'.$rid.'.'.$ext;
-        $storePath = $publicFolder.'/'.$filename;
-
-        Storage::disk('public')->put($storePath, $data);
-
-        $url = '/storage/'.$storePath;
-        $extractedImages[$rid] = $url;
-
-        return $url;
-    }
-
-    private function escapeText(string $t): string
-    {
-        $t = str_replace("\0", '', $t);
-        return htmlspecialchars($t, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    }
-
-    private function plainTextToHtml(string $text): string
-    {
-        $text = trim($text);
-        if ($text === '') return '';
-
-        $paras = preg_split("/\n{2,}/", $text) ?: [];
-        $out = [];
-        foreach ($paras as $p) {
-            $p = trim($p);
-            if ($p === '') continue;
-            $out[] = '<p>'.nl2br($this->escapeText($p), false).'</p>';
-        }
-        return implode("\n", $out);
-    }
-
-    // ======================================================
-    // ✅ PDF -> texte (si pdftotext dispo)
-    // ======================================================
-
+    /*
+    |--------------------------------------------------------------------------
+    | PDF -> texte (pdftotext)
+    |--------------------------------------------------------------------------
+    */
     private function extractTextFromPdf(string $path): string
     {
-        if ($this->canUseShellExec()) {
-            // Linux: nécessite poppler-utils
-            $cmd = 'pdftotext -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
-            $out = @shell_exec($cmd);
-            if (is_string($out) && !$this->looksGarbled($out)) {
-                return $out;
-            }
-        }
-        return '';
+        if (!$this->canUseShellExec()) return '';
+
+        $cmd = 'pdftotext -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null';
+        $out = @shell_exec($cmd);
+
+        if (!is_string($out)) return '';
+        if ($this->looksGarbled($out)) return '';
+
+        return $this->cleanText($out);
     }
 
     private function canUseShellExec(): bool
@@ -481,13 +417,33 @@ class CoursController extends Controller
 
     private function looksGarbled(string $text): bool
     {
-        $text = (string)$text;
-        if (trim($text) === '') return true;
-
         $len = strlen($text);
         if ($len <= 0) return true;
 
         $rep = substr_count($text, "�");
-        return ($rep > 0 && ($rep / max(1, $len)) > 0.03);
+        if ($rep > 0 && ($rep / max(1, $len)) > 0.03) return true;
+
+        return false;
+    }
+
+    private function textToHtml(string $text): string
+    {
+        $text = trim($text);
+        if ($text === '') return '';
+
+        $blocks = preg_split("/\n\s*\n/", $text) ?: [];
+        $out = [];
+
+        foreach ($blocks as $b) {
+            $b = trim($b);
+            if ($b === '') continue;
+
+            $safe = htmlspecialchars($b, ENT_QUOTES, 'UTF-8');
+            $safe = nl2br($safe);
+
+            $out[] = "<p>{$safe}</p>";
+        }
+
+        return '<div class="course-pdf">' . implode("\n", $out) . '</div>';
     }
 }

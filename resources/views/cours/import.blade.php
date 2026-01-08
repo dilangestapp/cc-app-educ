@@ -7,12 +7,17 @@
             border-bottom: 1px solid rgba(255,255,255,.10) !important;
         }
         nav a, nav button, nav span, nav div { color: rgba(255,255,255,.88) !important; }
-        body, main, .min-h-screen, p, h1, h2, h3, label, span, a, small, strong { color: rgba(255,255,255,.90); }
+        nav a:hover, nav button:hover { color: #fff !important; }
+        body, main, .min-h-screen, .glass-card, p, h1, h2, h3, label, span, a, small, strong {
+            color: rgba(255,255,255,.90);
+        }
         .glass-card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); backdrop-filter: blur(14px); }
         .glass-input { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.92); }
         .btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.55rem 1rem; border-radius:.9rem; font-size:.875rem; font-weight:600; transition:.15s; white-space:nowrap; }
         .btn-ghost { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.10); color:#fff; }
+        .btn-ghost:hover { background: rgba(255,255,255,.16); }
         .btn-primary { background: rgb(79 70 229); color:#fff; }
+        .btn-primary:hover { background: rgb(67 56 202); }
         .hint { color: rgba(255,255,255,.70); font-size: .9rem; }
     </style>
 
@@ -38,7 +43,8 @@
                                     Importer un cours ({{ $matiereRow->nom }})
                                 </h1>
                                 <p class="mt-1 hint">
-                                    DOCX recommandé : titres + paragraphe + images seront formatés automatiquement.
+                                    DOCX recommandé : titres + paragraphes + images seront convertis automatiquement.
+                                    PDF : texte uniquement (si pdftotext disponible).
                                 </p>
                             </div>
 
@@ -49,15 +55,15 @@
                     </div>
 
                     <div class="p-5">
-                        @if (session('error'))
-                            <div class="mb-4 rounded-xl border border-red-400/25 bg-red-300/10 px-4 py-3 text-red-100">
-                                {{ session('error') }}
-                            </div>
-                        @endif
-
                         @if (session('success'))
                             <div class="mb-4 rounded-xl border border-green-400/25 bg-green-300/10 px-4 py-3 text-green-100">
                                 {{ session('success') }}
+                            </div>
+                        @endif
+
+                        @if (session('error'))
+                            <div class="mb-4 rounded-xl border border-red-400/25 bg-red-300/10 px-4 py-3 text-red-100">
+                                {{ session('error') }}
                             </div>
                         @endif
 
@@ -77,7 +83,7 @@
                                 <input type="file" name="fichier" accept=".docx,.pdf"
                                        class="glass-input w-full rounded-xl px-4 py-3 text-sm" required>
                                 <div class="mt-2 hint">
-                                    PDF : texte seulement (si pdftotext dispo). DOCX : texte + images + mise en forme.
+                                    Taille conseillée : &lt; 50MB. Si ça refuse l’upload, c’est une limite serveur (déjà corrigée via start.sh).
                                 </div>
                             </div>
 
