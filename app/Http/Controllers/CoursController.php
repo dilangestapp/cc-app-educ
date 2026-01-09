@@ -67,8 +67,8 @@ class CoursController extends Controller
 
         $matiereId = (int)$matiere;
 
-        // ⚠️ Important : ne PAS faire $request->validate('file') ici, sinon Laravel renvoie
-        // "The fichier failed to upload." avant qu'on puisse afficher une vraie raison.
+        // ⚠️ Important : ne PAS faire $request->validate('file') ici,
+        // sinon Laravel renvoie "The file failed to upload." avant qu'on puisse afficher une vraie raison.
 
         if (!$request->hasFile('fichier')) {
             return back()->with('error', "Aucun fichier reçu. Vérifie la taille (limites serveur) et réessaie.");
@@ -129,11 +129,16 @@ class CoursController extends Controller
                     ->with('success', 'DOCX importé : contenu + images pré-remplis. Clique sur “Créer” pour enregistrer.');
 
             } else { // PDF
+                if (!$this->hasPdftotext()) {
+                    @unlink($tmpPath);
+                    return back()->with('error', "PDF import impossible : pdftotext n’est pas installé côté serveur. (Railway/Docker : ajoute poppler-utils).");
+                }
+
                 $text = $this->extractTextFromPdf($tmpPath);
                 @unlink($tmpPath);
 
                 if (trim($text) === '') {
-                    return back()->with('error', "PDF illisible (pas de texte récupérable). ✅ Essaie en DOCX, ou installe pdftotext côté serveur.");
+                    return back()->with('error', "PDF illisible (pas de texte récupérable). Ce PDF est probablement scanné (image). ✅ Essaie en DOCX ou utilise un PDF texte.");
                 }
 
                 $html = $this->textToHtml($text);
@@ -142,7 +147,7 @@ class CoursController extends Controller
                     ->route('cours.create', $matiereId)
                     ->withInput([
                         'titre'   => $title,
-                        'contenu' => $html, // HTML simple
+                        'contenu' => $html,
                         'actif'   => 1,
                     ])
                     ->with('success', 'PDF importé : texte pré-rempli (images PDF non supportées). Clique sur “Créer” pour enregistrer.');
@@ -276,10 +281,14 @@ class CoursController extends Controller
             }
         }
 
-        // Parse document xml
+        libxml_use_internal_errors(true);
+
         $dom = new \DOMDocument();
         $dom->preserveWhiteSpace = false;
-        $dom->loadXML($documentXml);
+        if (!$dom->loadXML($documentXml)) {
+            $zip->close();
+            throw new \RuntimeException("DOCX illisible (XML invalide).");
+        }
 
         $xp = new \DOMXPath($dom);
         $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
@@ -287,8 +296,8 @@ class CoursController extends Controller
         $xp->registerNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
 
         $htmlParts = [];
+        $inList = false;
 
-        /** @var \DOMElement $p */
         foreach ($xp->query('//w:body/w:p') as $p) {
 
             $pStyle = '';
@@ -298,13 +307,14 @@ class CoursController extends Controller
                 if ($pStyle === '') $pStyle = (string)$styleNode->getAttribute('w:val');
             }
 
+            $isList = $xp->query('w:pPr/w:numPr', $p)->length > 0;
+
             $tag = 'p';
             if (stripos($pStyle, 'Heading1') !== false) $tag = 'h2';
             if (stripos($pStyle, 'Heading2') !== false) $tag = 'h3';
 
             $inner = '';
 
-            /** @var \DOMElement $rNode */
             foreach ($xp->query('.//w:r', $p) as $rNode) {
 
                 // IMAGE ?
@@ -322,7 +332,7 @@ class CoursController extends Controller
                             Storage::disk('public')->put($savePath, $bin);
 
                             $src = '/storage/' . ltrim($savePath, '/');
-                            $inner .= '<div class="docx-image"><img src="' . htmlspecialchars($src) . '" alt=""></div>';
+                            $inner .= '<div class="docx-image"><img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" alt=""></div>';
                         }
                     }
                     continue;
@@ -340,7 +350,6 @@ class CoursController extends Controller
                     $text .= "\n";
                 }
 
-                $text = (string)$text;
                 if ($text === '') continue;
 
                 $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
@@ -355,8 +364,25 @@ class CoursController extends Controller
             $inner = trim($inner);
             if ($inner === '') continue;
 
+            // Gestion simple des listes
+            if ($isList) {
+                if (!$inList) {
+                    $htmlParts[] = '<ul>';
+                    $inList = true;
+                }
+                $htmlParts[] = '<li>' . $inner . '</li>';
+                continue;
+            } else {
+                if ($inList) {
+                    $htmlParts[] = '</ul>';
+                    $inList = false;
+                }
+            }
+
             $htmlParts[] = "<{$tag}>{$inner}</{$tag}>";
         }
+
+        if ($inList) $htmlParts[] = '</ul>';
 
         $zip->close();
 
@@ -365,7 +391,6 @@ class CoursController extends Controller
         // Bloque scripts au cas où
         $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html) ?? $html;
 
-        // Wrap
         return '<div class="course-docx">' . $html . '</div>';
     }
 
@@ -374,6 +399,13 @@ class CoursController extends Controller
     | PDF -> texte (pdftotext)
     |--------------------------------------------------------------------------
     */
+    private function hasPdftotext(): bool
+    {
+        if (!$this->canUseShellExec()) return false;
+        $check = @shell_exec('command -v pdftotext 2>/dev/null');
+        return is_string($check) && trim($check) !== '';
+    }
+
     private function extractTextFromPdf(string $path): string
     {
         if (!$this->canUseShellExec()) return '';
@@ -438,10 +470,29 @@ class CoursController extends Controller
             $b = trim($b);
             if ($b === '') continue;
 
-            $safe = htmlspecialchars($b, ENT_QUOTES, 'UTF-8');
-            $safe = nl2br($safe);
+            $lines = preg_split("/\n+/", $b) ?: [];
+            $bulletLines = 0;
 
-            $out[] = "<p>{$safe}</p>";
+            foreach ($lines as $ln) {
+                $ln = trim($ln);
+                if (preg_match('/^(\-|\•|\*|\d+\.)\s+/', $ln)) $bulletLines++;
+            }
+
+            // si majorité de lignes = bullets => <ul>
+            if (count($lines) >= 2 && $bulletLines >= (int)ceil(count($lines) * 0.6)) {
+                $out[] = '<ul>';
+                foreach ($lines as $ln) {
+                    $ln = trim($ln);
+                    $ln = preg_replace('/^(\-|\•|\*|\d+\.)\s+/', '', $ln) ?? $ln;
+                    $safe = htmlspecialchars($ln, ENT_QUOTES, 'UTF-8');
+                    if ($safe !== '') $out[] = "<li>{$safe}</li>";
+                }
+                $out[] = '</ul>';
+            } else {
+                $safe = htmlspecialchars($b, ENT_QUOTES, 'UTF-8');
+                $safe = nl2br($safe);
+                $out[] = "<p>{$safe}</p>";
+            }
         }
 
         return '<div class="course-pdf">' . implode("\n", $out) . '</div>';

@@ -2,10 +2,13 @@ FROM php:8.2-cli-alpine
 
 WORKDIR /app
 
-# Dépendances système + Node (pour Vite build)
-RUN apk add --no-cache bash git unzip icu-dev libzip-dev oniguruma-dev postgresql-dev \
+# Dépendances système + Node (pour Vite build) + pdftotext (poppler-utils)
+RUN apk add --no-cache \
+    bash git unzip \
+    icu-dev libzip-dev oniguruma-dev postgresql-dev \
     libpng-dev libjpeg-turbo-dev freetype-dev \
-    nodejs npm
+    nodejs npm \
+    poppler-utils
 
 # Extensions PHP (gd + db)
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
