@@ -67,9 +67,7 @@ class CoursController extends Controller
 
         $matiereId = (int)$matiere;
 
-        // ⚠️ Important : ne PAS faire $request->validate('file') ici,
-        // sinon Laravel renvoie "The file failed to upload." avant qu'on puisse afficher une vraie raison.
-
+        // ⚠️ Important : ne PAS faire $request->validate('file') ici.
         if (!$request->hasFile('fichier')) {
             return back()->with('error', "Aucun fichier reçu. Vérifie la taille (limites serveur) et réessaie.");
         }
@@ -249,7 +247,7 @@ class CoursController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | DOCX -> HTML + Images
+    | DOCX -> HTML + Images (ROBUSTE)
     |--------------------------------------------------------------------------
     */
     private function docxToHtmlWithImages(string $docxPath, string $publicFolder): string
@@ -265,19 +263,32 @@ class CoursController extends Controller
         }
 
         $documentXml = $zip->getFromName('word/document.xml');
-        $relsXml = $zip->getFromName('word/_rels/document.xml.rels');
+        $relsXml     = $zip->getFromName('word/_rels/document.xml.rels');
 
-        if ($documentXml === false) {
+        if (!is_string($documentXml) || $documentXml === '') {
             $zip->close();
             throw new \RuntimeException("DOCX invalide (document.xml introuvable).");
         }
 
-        // Map rId -> target media
+        // Map rId -> target (+ external)
         $relMap = [];
-        if (is_string($relsXml)) {
-            preg_match_all('/Relationship[^>]+Id="([^"]+)"[^>]+Target="([^"]+)"/i', $relsXml, $m, PREG_SET_ORDER);
-            foreach ($m as $row) {
-                $relMap[$row[1]] = $row[2]; // ex: media/image1.png
+        if (is_string($relsXml) && trim($relsXml) !== '') {
+            $relsDom = new \DOMDocument();
+            $relsDom->preserveWhiteSpace = false;
+            if (@$relsDom->loadXML($relsXml)) {
+                foreach ($relsDom->getElementsByTagName('Relationship') as $rel) {
+                    /** @var \DOMElement $rel */
+                    $id = $rel->getAttribute('Id');
+                    $target = $rel->getAttribute('Target');
+                    $mode = $rel->getAttribute('TargetMode'); // "External" possible
+
+                    if ($id !== '' && $target !== '') {
+                        $relMap[$id] = [
+                            'target'   => $target,
+                            'external' => (strtolower($mode) === 'external'),
+                        ];
+                    }
+                }
             }
         }
 
@@ -285,7 +296,7 @@ class CoursController extends Controller
 
         $dom = new \DOMDocument();
         $dom->preserveWhiteSpace = false;
-        if (!$dom->loadXML($documentXml)) {
+        if (!@$dom->loadXML($documentXml)) {
             $zip->close();
             throw new \RuntimeException("DOCX illisible (XML invalide).");
         }
@@ -294,12 +305,14 @@ class CoursController extends Controller
         $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
         $xp->registerNamespace('a', 'http://schemas.openxmlformats.org/drawingml/2006/main');
         $xp->registerNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+        $xp->registerNamespace('v', 'urn:schemas-microsoft-com:vml');
 
         $htmlParts = [];
         $inList = false;
 
-        foreach ($xp->query('//w:body/w:p') as $p) {
+        foreach ($xp->query('//w:body//w:p') as $p) {
 
+            // style
             $pStyle = '';
             $styleNode = $xp->query('w:pPr/w:pStyle', $p)->item(0);
             if ($styleNode instanceof \DOMElement) {
@@ -310,35 +323,44 @@ class CoursController extends Controller
             $isList = $xp->query('w:pPr/w:numPr', $p)->length > 0;
 
             $tag = 'p';
-            if (stripos($pStyle, 'Heading1') !== false) $tag = 'h2';
-            if (stripos($pStyle, 'Heading2') !== false) $tag = 'h3';
+            if (stripos($pStyle, 'Heading1') !== false || stripos($pStyle, 'Titre1') !== false) $tag = 'h2';
+            if (stripos($pStyle, 'Heading2') !== false || stripos($pStyle, 'Titre2') !== false) $tag = 'h3';
 
             $inner = '';
 
             foreach ($xp->query('.//w:r', $p) as $rNode) {
 
-                // IMAGE ?
+                // DrawingML images
                 $blip = $xp->query('.//a:blip', $rNode)->item(0);
                 if ($blip instanceof \DOMElement) {
                     $rid = $blip->getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
-                    if ($rid && isset($relMap[$rid])) {
-                        $target = $relMap[$rid]; // media/imageX.png
-                        $bin = $zip->getFromName('word/' . $target);
-                        if ($bin !== false) {
-                            $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION)) ?: 'png';
-                            $name = 'img_' . substr(md5($rid . microtime(true)), 0, 10) . '.' . $ext;
-                            $savePath = $publicFolder . '/' . $name;
+                    if ($rid === '') $rid = $blip->getAttribute('r:embed');
 
-                            Storage::disk('public')->put($savePath, $bin);
-
-                            $src = '/storage/' . ltrim($savePath, '/');
+                    if ($rid !== '') {
+                        $src = $this->saveDocxImageFromRid($zip, $relMap, $rid, $publicFolder);
+                        if ($src) {
                             $inner .= '<div class="docx-image"><img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" alt=""></div>';
                         }
                     }
                     continue;
                 }
 
-                // TEXTE / BR
+                // VML images (anciens DOCX)
+                $vImg = $xp->query('.//v:imagedata', $rNode)->item(0);
+                if ($vImg instanceof \DOMElement) {
+                    $rid = $vImg->getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+                    if ($rid === '') $rid = $vImg->getAttribute('r:id');
+
+                    if ($rid !== '') {
+                        $src = $this->saveDocxImageFromRid($zip, $relMap, $rid, $publicFolder);
+                        if ($src) {
+                            $inner .= '<div class="docx-image"><img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" alt=""></div>';
+                        }
+                    }
+                    continue;
+                }
+
+                // texte
                 $isBold = $xp->query('w:rPr/w:b', $rNode)->length > 0;
                 $isItalic = $xp->query('w:rPr/w:i', $rNode)->length > 0;
 
@@ -364,7 +386,6 @@ class CoursController extends Controller
             $inner = trim($inner);
             if ($inner === '') continue;
 
-            // Gestion simple des listes
             if ($isList) {
                 if (!$inList) {
                     $htmlParts[] = '<ul>';
@@ -387,11 +408,56 @@ class CoursController extends Controller
         $zip->close();
 
         $html = implode("\n", $htmlParts);
-
-        // Bloque scripts au cas où
         $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html) ?? $html;
 
         return '<div class="course-docx">' . $html . '</div>';
+    }
+
+    private function normalizeDocxTarget(string $target): string
+    {
+        $target = str_replace('\\', '/', $target);
+        $target = ltrim($target, '/');
+
+        // cible fréquente : ../media/image1.png
+        while (str_starts_with($target, '../')) {
+            $target = substr($target, 3);
+        }
+
+        // parfois déjà préfixé word/
+        if (str_starts_with($target, 'word/')) {
+            $target = substr($target, 5);
+        }
+
+        return $target;
+    }
+
+    private function saveDocxImageFromRid(\ZipArchive $zip, array $relMap, string $rid, string $publicFolder): ?string
+    {
+        if (!isset($relMap[$rid])) return null;
+        if (!empty($relMap[$rid]['external'])) return null;
+
+        $target = (string)$relMap[$rid]['target'];
+        $target = $this->normalizeDocxTarget($target);
+
+        // chemins possibles
+        $bin = $zip->getFromName('word/' . $target);
+        if ($bin === false) {
+            $bin = $zip->getFromName($target);
+        }
+        if ($bin === false) return null;
+
+        $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION)) ?: 'png';
+        $name = 'img_' . substr(md5($rid . microtime(true)), 0, 12) . '.' . $ext;
+
+        $publicFolder = trim($publicFolder, '/');
+        $savePath = $publicFolder . '/' . $name;
+
+        $ok = Storage::disk('public')->put($savePath, $bin);
+        if (!$ok) {
+            throw new \RuntimeException("Impossible d'écrire l'image dans storage/public (permissions).");
+        }
+
+        return '/storage/' . ltrim($savePath, '/');
     }
 
     /*
@@ -478,7 +544,6 @@ class CoursController extends Controller
                 if (preg_match('/^(\-|\•|\*|\d+\.)\s+/', $ln)) $bulletLines++;
             }
 
-            // si majorité de lignes = bullets => <ul>
             if (count($lines) >= 2 && $bulletLines >= (int)ceil(count($lines) * 0.6)) {
                 $out[] = '<ul>';
                 foreach ($lines as $ln) {
